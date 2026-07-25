@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { BenchmarkSummary, EditorSummary, Stats } from './types.ts'
+import { writeCpuBreakdownReport } from './cpuBreakdownReport.ts'
+import type { BenchmarkSummary, CpuBreakdown, EditorSummary, Stats } from './types.ts'
 
 interface ReportOptions {
   readonly input: string
@@ -156,6 +157,7 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
   <main>
     <h1>${escapeHtml(title)}</h1>
     <p class="intro">${summary.characters} <code>a</code> keypresses per iteration · generated ${escapeHtml(summary.generatedAt)}</p>
+    <p><a href="./lvce-cpu/">LVCE CPU breakdown</a></p>
     ${charts
       .map(
         (chart) => `<section class="card">
@@ -180,8 +182,17 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
 
 export const writeReport = async ({ input, output, title }: ReportOptions): Promise<void> => {
   const summary = JSON.parse(await readFile(join(input, 'summary.json'), 'utf8')) as BenchmarkSummary
+  const cpuBreakdown = JSON.parse(await readFile(join(input, 'cpu-breakdown.json'), 'utf8')) as CpuBreakdown
   await mkdir(output, { recursive: true })
-  await Promise.all(charts.map((chart) => writeFile(join(output, chart.fileName), renderChart(summary, chart))))
-  await writeFile(join(output, 'index.html'), renderHtml(summary, title))
-  await copyFile(join(input, 'summary.json'), join(output, 'summary.json'))
+  await Promise.all([
+    ...charts.map((chart) => writeFile(join(output, chart.fileName), renderChart(summary, chart))),
+    writeFile(join(output, 'index.html'), renderHtml(summary, title)),
+    copyFile(join(input, 'summary.json'), join(output, 'summary.json')),
+    writeCpuBreakdownReport({
+      breakdown: cpuBreakdown,
+      output: join(output, 'lvce-cpu'),
+      source: join(input, 'cpu-breakdown.json'),
+      summary,
+    }),
+  ])
 }

@@ -29,10 +29,44 @@ test('writes a static report and chart files', async () => {
     ],
   }
   await writeFile(join(input, 'summary.json'), JSON.stringify(summary))
+  await writeFile(
+    join(input, 'cpu-breakdown.json'),
+    JSON.stringify({
+      contexts: [
+        {
+          functionCount: 2,
+          kind: 'worker',
+          name: 'Editor worker',
+          selfMs: 7,
+          share: 70,
+        },
+      ],
+      hotspots: [
+        {
+          columnNumber: 2,
+          context: 'Editor worker',
+          functionName: 'updateDerivedState',
+          inclusiveMs: 8,
+          lineNumber: 10,
+          samples: 4,
+          selfMs: 7,
+          share: 70,
+          source: 'editorWorkerMain.js',
+        },
+      ],
+      iterations: 20,
+      lvceJavaScriptMs: 10,
+    }),
+  )
   await writeReport({ input, output, title: 'Typing Results' })
   const html = await readFile(join(output, 'index.html'), 'utf8')
+  const breakdownHtml = await readFile(join(output, 'lvce-cpu', 'index.html'), 'utf8')
   const chart = await readFile(join(output, 'typing-duration.svg'), 'utf8')
   assert.match(html, /Typing Results/)
   assert.match(html, /500/)
+  assert.match(html, /LVCE CPU breakdown/)
   assert.match(chart, /CodeMirror/)
+  assert.match(breakdownHtml, /updateDerivedState/)
+  assert.match(breakdownHtml, /Editor worker/)
+  assert.match(breakdownHtml, /Self CPU per run/)
 })

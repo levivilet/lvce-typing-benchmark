@@ -66,6 +66,7 @@ export interface BenchmarkSummary {
 
 export interface TraceEvent {
   readonly args?: {
+    readonly name?: string
     readonly data?: {
       readonly cpuProfile?: {
         readonly nodes?: readonly CpuProfileNode[]
@@ -82,13 +83,44 @@ export interface TraceEvent {
 
 export interface CpuProfileNode {
   readonly id: number
+  readonly parent?: number
   readonly callFrame: {
+    readonly codeType?: string
+    readonly columnNumber?: number
     readonly functionName: string
+    readonly lineNumber?: number
     readonly scriptId: string
-    readonly url: string
+    readonly url?: string
   }
 }
 
 export interface TraceProfile {
   readonly traceEvents: readonly TraceEvent[]
+}
+
+export interface CpuFunctionHotspot {
+  readonly columnNumber: number
+  readonly context: string
+  readonly functionName: string
+  readonly inclusiveMs: number
+  readonly lineNumber: number
+  readonly samples: number
+  readonly selfMs: number
+  readonly share: number
+  readonly source: string
+}
+
+export interface CpuExecutionContext {
+  readonly functionCount: number
+  readonly kind: 'main' | 'worker'
+  readonly name: string
+  readonly selfMs: number
+  readonly share: number
+}
+
+export interface CpuBreakdown {
+  readonly contexts: readonly CpuExecutionContext[]
+  readonly hotspots: readonly CpuFunctionHotspot[]
+  readonly iterations: number
+  readonly lvceJavaScriptMs: number
 }

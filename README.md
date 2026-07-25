@@ -33,7 +33,9 @@ editor. Each measured iteration:
 
 The analysis sums sampled non-idle V8 time across the page and its workers. It
 then computes the minimum, mean, maximum, and p95 for typing wall time and
-JavaScript execution time.
+JavaScript execution time. The generated report also has a separate
+`lvce-cpu/` page with average self and inclusive CPU time per LVCE function,
+execution-context shares, bundled source locations, and samples per run.
 
 Useful options:
 

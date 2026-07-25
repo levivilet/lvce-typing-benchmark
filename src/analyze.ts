@@ -1,13 +1,14 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { editorLabels } from './editors.ts'
+import { analyzeCpuBreakdown } from './cpuBreakdown.ts'
 import { computeStats } from './stats.ts'
 import type { BenchmarkSummary, CpuProfileNode, EditorFixture, EditorId, IterationResult, TraceEvent, TraceProfile } from './types.ts'
 
 const specialFunctions = new Set(['(garbage collector)', '(idle)', '(program)', '(root)'])
 
 const getProfileKey = (event: TraceEvent): string => {
-  return `${event.pid ?? 0}:${event.tid ?? 0}:${event.id ?? ''}`
+  return `${event.pid ?? 0}:${event.id ?? event.tid ?? 0}`
 }
 
 const isJavaScriptNode = (node: CpuProfileNode | undefined): boolean => {
@@ -38,20 +39,13 @@ export const getJavaScriptDurationMs = (trace: TraceProfile): number => {
     const timeDeltas = event.args?.data?.timeDeltas || []
     const nodeMap = nodeMaps.get(getProfileKey(event))
     for (let index = 0; index < samples.length; index++) {
-      if (isJavaScriptNode(nodeMap?.get(samples[index] ?? -1))) {
-        totalMicroseconds += timeDeltas[index] || 0
+      const delta = timeDeltas[index] || 0
+      if (delta > 0 && isJavaScriptNode(nodeMap?.get(samples[index] ?? -1))) {
+        totalMicroseconds += delta
       }
     }
   }
   return totalMicroseconds / 1_000
-}
-
-const readJavaScriptDuration = async (input: string, result: IterationResult): Promise<number | null> => {
-  if (!result.profilePath) {
-    return null
-  }
-  const trace = JSON.parse(await readFile(join(input, result.profilePath), 'utf8')) as TraceProfile
-  return getJavaScriptDurationMs(trace)
 }
 
 export const analyzeResults = async (
@@ -60,6 +54,21 @@ export const analyzeResults = async (
   characters: number,
 ): Promise<BenchmarkSummary> => {
   const results = JSON.parse(await readFile(join(input, 'iterations.json'), 'utf8')) as readonly IterationResult[]
+  const traceCache = new Map<string, Promise<TraceProfile>>()
+  const readTrace = (result: IterationResult): Promise<TraceProfile | null> => {
+    if (!result.profilePath) {
+      return Promise.resolve(null)
+    }
+    const cached = traceCache.get(result.profilePath)
+    if (cached) {
+      return cached
+    }
+    const trace = readFile(join(input, result.profilePath), 'utf8').then(
+      (value) => JSON.parse(value) as TraceProfile,
+    )
+    traceCache.set(result.profilePath, trace)
+    return trace
+  }
   const measuredResults = results.filter((result) => !result.warmup)
   const editorIds = [...new Set(measuredResults.map((result) => result.editor))]
   const editors = await Promise.all(
@@ -67,7 +76,12 @@ export const analyzeResults = async (
       const editorResults = measuredResults.filter((result) => result.editor === id)
       const successfulResults = editorResults.filter((result) => result.success)
       const javascriptDurations = (
-        await Promise.all(successfulResults.map(async (result) => readJavaScriptDuration(input, result)))
+        await Promise.all(
+          successfulResults.map(async (result) => {
+            const trace = await readTrace(result)
+            return trace ? getJavaScriptDurationMs(trace) : null
+          }),
+        )
       ).filter((value): value is number => value !== null)
       const fixture = fixtures.find((candidate) => candidate.id === id)
       return {
@@ -87,6 +101,14 @@ export const analyzeResults = async (
     characters,
     editors,
   }
-  await writeFile(join(input, 'summary.json'), `${JSON.stringify(summary, undefined, 2)}\n`)
+  const lvceResults = measuredResults.filter((result) => result.editor === 'lvce-editor' && result.success)
+  const lvceTraces = (
+    await Promise.all(lvceResults.map(async (result) => readTrace(result)))
+  ).filter((trace): trace is TraceProfile => trace !== null)
+  const cpuBreakdown = analyzeCpuBreakdown(lvceTraces)
+  await Promise.all([
+    writeFile(join(input, 'summary.json'), `${JSON.stringify(summary, undefined, 2)}\n`),
+    writeFile(join(input, 'cpu-breakdown.json'), `${JSON.stringify(cpuBreakdown, undefined, 2)}\n`),
+  ])
   return summary
 }

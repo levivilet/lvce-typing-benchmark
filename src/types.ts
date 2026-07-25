@@ -1,0 +1,94 @@
+export type EditorId = 'lvce-editor' | 'monaco-editor' | 'codemirror'
+
+export interface EditorFixture {
+  readonly id: EditorId
+  readonly label: string
+  readonly version: string
+  readonly kind: 'lvce' | 'static'
+  readonly path: string
+}
+
+export interface FixtureManifest {
+  readonly generatedAt: string
+  readonly editors: readonly EditorFixture[]
+}
+
+export interface BenchmarkMetadata {
+  readonly characters: number
+  readonly editors: readonly EditorFixture[]
+}
+
+export interface BenchmarkOptions {
+  readonly characters: number
+  readonly editors: readonly EditorId[]
+  readonly headed: boolean
+  readonly iterations: number
+  readonly output: string
+  readonly profile: boolean
+  readonly staticDirectory: string
+  readonly timeout: number
+  readonly warmups: number
+}
+
+export interface IterationResult {
+  readonly editor: EditorId
+  readonly iteration: number
+  readonly profilePath?: string
+  readonly success: boolean
+  readonly typingDurationMs: number
+  readonly warmup: boolean
+  readonly error?: string
+}
+
+export interface Stats {
+  readonly mean: number | null
+  readonly min: number | null
+  readonly max: number | null
+  readonly p95: number | null
+}
+
+export interface EditorSummary {
+  readonly id: EditorId
+  readonly label: string
+  readonly version: string
+  readonly iterations: number
+  readonly failures: number
+  readonly characters: number
+  readonly typingDurationMs: Stats
+  readonly javascriptDurationMs: Stats
+}
+
+export interface BenchmarkSummary {
+  readonly generatedAt: string
+  readonly characters: number
+  readonly editors: readonly EditorSummary[]
+}
+
+export interface TraceEvent {
+  readonly args?: {
+    readonly data?: {
+      readonly cpuProfile?: {
+        readonly nodes?: readonly CpuProfileNode[]
+        readonly samples?: readonly number[]
+      }
+      readonly timeDeltas?: readonly number[]
+    }
+  }
+  readonly id?: string
+  readonly name?: string
+  readonly pid?: number
+  readonly tid?: number
+}
+
+export interface CpuProfileNode {
+  readonly id: number
+  readonly callFrame: {
+    readonly functionName: string
+    readonly scriptId: string
+    readonly url: string
+  }
+}
+
+export interface TraceProfile {
+  readonly traceEvents: readonly TraceEvent[]
+}

@@ -1,0 +1,42 @@
+name: PR
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run type-check
+      - run: npm run setup
+      - run: npm run install-browser:ci
+      - name: Run benchmark smoke test
+        env:
+          CHARACTERS: "500"
+          ITERATIONS: "1"
+          WARMUPS: "0"
+          PROFILE: "true"
+        run: npm run benchmark:ci
+      - name: Generate report
+        if: always()
+        run: npm run ci:report
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: lvce-typing-benchmark-results
+          path: |
+            results/**
+            .tmp/pages/**

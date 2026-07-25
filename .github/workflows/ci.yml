@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      editors:
+        description: "Comma-separated editors"
+        required: false
+        default: "lvce-editor,monaco-editor,codemirror"
+      characters:
+        description: "Characters typed per iteration"
+        required: false
+        default: "500"
+      iterations:
+        description: "Measured iterations per editor"
+        required: false
+        default: "20"
+      warmups:
+        description: "Warmup iterations per editor"
+        required: false
+        default: "1"
+      profile:
+        description: "Record Chromium CPU profiles"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    outputs:
+      pages: ${{ steps.report.outputs.pages }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run type-check
+      - run: npm run setup
+      - run: npm run install-browser:ci
+      - name: Run benchmark
+        env:
+          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor,monaco-editor,codemirror' }}
+          CHARACTERS: ${{ github.event.inputs.characters || '500' }}
+          ITERATIONS: ${{ github.event.inputs.iterations || '20' }}
+          WARMUPS: ${{ github.event.inputs.warmups || '1' }}
+          PROFILE: ${{ github.event.inputs.profile || 'true' }}
+        run: npm run benchmark:ci
+      - name: Generate Pages report
+        id: report
+        if: always()
+        run: npm run ci:report
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: lvce-typing-benchmark-results
+          path: results/**
+      - name: Configure GitHub Pages
+        if: always() && steps.report.outputs.pages == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        if: always() && steps.report.outputs.pages == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .tmp/pages
+
+  deploy:
+    if: always() && needs.benchmark.outputs.pages == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.benchmark.result != 'cancelled'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: benchmark
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

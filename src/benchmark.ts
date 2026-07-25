@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join, relative, resolve } from 'node:path'
+import { basename, join, relative, resolve } from 'node:path'
 import { chromium, type Browser, type CDPSession, type Page } from 'playwright'
 import { analyzeResults } from './analyze.ts'
 import { startCpuTrace, stopCpuTrace } from './cpuTrace.ts'
@@ -49,20 +49,13 @@ const prepareStaticEditor = async (page: Page, url: string, timeout: number): Pr
 }
 
 const prepareLvceEditor = async (page: Page, url: string, workspaceFile: string, timeout: number): Promise<void> => {
-  const targetUrl = new URL(url)
-  targetUrl.searchParams.set('openUri', workspaceFile)
-  await page.goto(targetUrl.href, { timeout, waitUntil: 'load' })
+  await page.goto(url, { timeout, waitUntil: 'load' })
+  const fileName = basename(workspaceFile)
+  const file = page.getByText(fileName, { exact: true }).first()
+  await file.waitFor({ state: 'visible', timeout })
+  await file.dblclick()
   const editorInput = page.locator('.EditorInput textarea')
-  const openedFromUrl = await editorInput
-    .waitFor({ state: 'attached', timeout: Math.min(timeout, 15_000) })
-    .then(() => true)
-    .catch(() => false)
-  if (!openedFromUrl) {
-    const file = page.getByText('benchmark.txt', { exact: true }).first()
-    await file.waitFor({ state: 'visible', timeout })
-    await file.dblclick()
-    await editorInput.waitFor({ state: 'attached', timeout })
-  }
+  await editorInput.waitFor({ state: 'attached', timeout })
   await editorInput.focus()
 }
 

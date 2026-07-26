@@ -48,13 +48,17 @@ execution-context shares, bundled source locations, and samples per run.
 editor. Every iteration launches a fresh Chromium instance at 1280×720 and
 opens the same roughly 30-line Hello World HTML document with HTML syntax
 highlighting enabled. The measurement ends after highlighted tokens are in the
-DOM and two animation frames have completed.
+DOM and two animation frames have completed. After the measured runs, Playwright
+records one separate fresh load per editor to `render-results/videos/`. Keeping
+the recorded loads separate prevents video encoding from affecting benchmark
+measurements.
 
 Raw results include DOMContentLoaded, syntax-highlight render time, sampled
 JavaScript execution, main-page JavaScript heap, Chromium renderer-process
 resident memory, and GPU-process resident memory on Linux. `npm run
 report:render` writes a dedicated static report to `.tmp/pages/rendering/` with
-comparison charts suitable for GitHub Pages.
+the three load recordings stacked above comparison charts suitable for GitHub
+Pages.
 
 Useful options:
 
@@ -72,5 +76,5 @@ npm run report:render -- --input render-results --output .tmp/pages/rendering
 Pull requests run lint, tests, type checking, fixture generation, and one full
 500-character typing iteration plus one profiled rendering iteration per
 editor. Pushes to `main` run 20 profiled iterations for both benchmarks, upload
-the raw results/profiles as an artifact, and deploy the generated charts to
-GitHub Pages.
+the raw results/profiles and load recordings as an artifact, and deploy the
+generated reports and recordings to GitHub Pages.

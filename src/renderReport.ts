@@ -178,6 +178,18 @@ const renderRows = (summary: RenderBenchmarkSummary): string => {
     .join('\n')
 }
 
+const renderLoadVideos = (summary: RenderBenchmarkSummary): string => {
+  return summary.editors
+    .map(
+      (editor) => `<article class="card video-card">
+      <h3>${escapeHtml(editor.label)}</h3>
+      <p class="video-version">v${escapeHtml(editor.version)}</p>
+      <video controls muted playsinline preload="metadata" src="./videos/${escapeHtml(editor.id)}.webm" aria-label="${escapeHtml(editor.label)} load recording"></video>
+    </article>`,
+    )
+    .join('\n')
+}
+
 const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `<!doctype html>
 <html lang="en">
 <head>
@@ -192,9 +204,13 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
     h1 { margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: -0.04em; }
     .intro, .note { color: #475569; margin: 0 0 20px; font-size: 1.05rem; }
     .note { max-width: 82ch; }
+    .recordings { margin: 36px 0 28px; }
     .card { background: white; border: 1px solid #d8e0ec; border-radius: 12px; padding: 28px 32px; margin: 16px 0; overflow: auto; }
     h2 { margin: 0 0 4px; font-size: 1.65rem; }
+    h3 { margin: 0; font-size: 1.35rem; }
     .description { margin: 0 0 20px; color: #64748b; }
+    .video-version { margin: 4px 0 18px; color: #64748b; }
+    video { display: block; width: 100%; max-width: 1280px; aspect-ratio: 16 / 9; background: #0f172a; }
     img { display: block; width: 100%; min-width: 720px; }
     table { width: 100%; border-collapse: collapse; min-width: 1100px; }
     th, td { text-align: left; border-bottom: 1px solid #e2e8f0; padding: 14px 12px; white-space: nowrap; }
@@ -209,6 +225,11 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
     <h1>${escapeHtml(title)}</h1>
     <p class="intro">${summary.lines}-line <code>${escapeHtml(summary.document)}</code> · generated ${escapeHtml(summary.generatedAt)}</p>
     <p class="note">Each editor opens the same HTML in a fresh Chromium instance. LVCE is a full IDE while Monaco and CodeMirror are editor components, so the startup and memory numbers describe the tested products rather than an equal feature set.</p>
+    <section class="recordings">
+      <h2>Recorded loads</h2>
+      <p class="description">Each video records one separate, fresh Chromium load from navigation until syntax highlighting is painted. Video capture is not included in the measurements below.</p>
+      ${renderLoadVideos(summary)}
+    </section>
     ${charts
       .map(
         (chart) => `<section class="card">
@@ -233,9 +254,12 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
 
 export const writeRenderReport = async ({ input, output, title }: RenderReportOptions): Promise<void> => {
   const summary = JSON.parse(await readFile(join(input, 'summary.json'), 'utf8')) as RenderBenchmarkSummary
-  await mkdir(output, { recursive: true })
+  await Promise.all([mkdir(output, { recursive: true }), mkdir(join(output, 'videos'), { recursive: true })])
   await Promise.all([
     ...charts.map((chart) => writeFile(join(output, chart.fileName), renderChart(summary, chart))),
+    ...summary.editors.map((editor) =>
+      copyFile(join(input, 'videos', `${editor.id}.webm`), join(output, 'videos', `${editor.id}.webm`)),
+    ),
     writeFile(join(output, 'index.html'), renderHtml(summary, title)),
     copyFile(join(input, 'summary.json'), join(output, 'summary.json')),
   ])

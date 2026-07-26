@@ -30,6 +30,12 @@ jobs:
           WARMUPS: "0"
           PROFILE: "true"
         run: npm run benchmark:ci
+      - name: Run syntax highlight rendering smoke test
+        env:
+          ITERATIONS: "1"
+          WARMUPS: "0"
+          PROFILE: "true"
+        run: npm run benchmark:render:ci
       - name: Generate report
         if: always()
         run: npm run ci:report
@@ -39,4 +45,5 @@ jobs:
           name: lvce-typing-benchmark-results
           path: |
             results/**
+            render-results/**
             .tmp/pages/**

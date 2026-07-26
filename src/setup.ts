@@ -2,6 +2,7 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
+import { renderDocument } from '../fixtures/renderDocument.ts'
 import { editorLabels } from './editors.ts'
 import type { EditorFixture, FixtureManifest } from './types.ts'
 
@@ -30,6 +31,31 @@ const writeHtml = async (output: string, label: string): Promise<void> => {
   await writeFile(join(output, 'index.html'), template.split('EDITOR_NAME').join(label))
 }
 
+const patchLvceStartup = async (staticRoot: string): Promise<void> => {
+  const indexHtml = await readFile(join(staticRoot, 'index.html'), 'utf8')
+  const workerMatch = /src="\/([^/]+)\/packages\/renderer-process\/dist\/rendererProcessMain\.js"/.exec(indexHtml)
+  if (!workerMatch?.[1]) {
+    throw new Error('Could not resolve the LVCE static asset directory')
+  }
+  const workerPath = join(staticRoot, workerMatch[1], 'packages', 'renderer-worker', 'dist', 'rendererWorkerMain.js')
+  const source = await readFile(workerPath, 'utf8')
+  if (source.includes("searchParams.get('benchmarkOpenUri')")) {
+    return
+  }
+  const marker = '  await watcherPromises;\n};'
+  if (!source.includes(marker)) {
+    throw new Error(`Could not find the LVCE startup patch point in ${workerPath}`)
+  }
+  const markerIndex = source.indexOf(marker)
+  const replacement = `  await watcherPromises;
+  const benchmarkOpenUri = new URL(initData.Location.href).searchParams.get('benchmarkOpenUri');
+  if (benchmarkOpenUri) {
+    await execute$4('Main.openUri', benchmarkOpenUri);
+  }
+};`
+  await writeFile(workerPath, `${source.slice(0, markerIndex)}${replacement}${source.slice(markerIndex + marker.length)}`)
+}
+
 const bundleEditor = async (id: 'monaco-editor' | 'codemirror', sourceDirectory: 'monaco' | 'codemirror', outputRoot: string): Promise<void> => {
   const output = join(outputRoot, id)
   await mkdir(output, { recursive: true })
@@ -56,6 +82,10 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
     bundleEditor('monaco-editor', 'monaco', resolvedOutput),
     bundleEditor('codemirror', 'codemirror', resolvedOutput),
     cp(join(root, 'node_modules', '@lvce-editor', 'static-server', 'static'), join(resolvedOutput, 'lvce-editor'), { recursive: true }),
+  ])
+  await Promise.all([
+    patchLvceStartup(join(resolvedOutput, 'lvce-editor')),
+    patchLvceStartup(join(root, 'node_modules', '@lvce-editor', 'static-server', 'static')),
   ])
 
   const editors: readonly EditorFixture[] = [
@@ -88,6 +118,7 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
   await writeFile(join(resolvedOutput, 'manifest.json'), `${JSON.stringify(manifest, undefined, 2)}\n`)
   await mkdir(join(root, '.tmp', 'workspace'), { recursive: true })
   await writeFile(join(root, '.tmp', 'workspace', 'benchmark.txt'), '')
+  await writeFile(join(root, '.tmp', 'workspace', 'benchmark.html'), renderDocument)
   console.info(`Generated ${editors.length} editor fixtures in ${resolvedOutput}`)
   return manifest
 }

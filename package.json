@@ -7,10 +7,13 @@
     "analyze": "node src/analyzeCli.ts",
     "benchmark": "npm run setup && node src/main.ts",
     "benchmark:ci": "node src/runCiBenchmark.ts",
+    "benchmark:render": "npm run setup && node src/renderMain.ts",
+    "benchmark:render:ci": "node src/runCiRenderBenchmark.ts",
     "ci:report": "node src/generateCiReport.ts",
     "install-browser:ci": "playwright install --with-deps chromium",
     "lint": "eslint .",
     "report": "node src/reportCli.ts",
+    "report:render": "node src/renderReportCli.ts",
     "setup": "node src/setup.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "type-check": "tsc --noEmit"
@@ -19,6 +22,7 @@
     "node": ">=24"
   },
   "dependencies": {
+    "@codemirror/lang-html": "6.4.11",
     "@lvce-editor/server": "0.93.17",
     "@lvce-editor/static-server": "0.93.17",
     "codemirror": "6.0.2",

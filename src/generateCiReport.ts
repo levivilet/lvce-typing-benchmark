@@ -1,6 +1,7 @@
 import { access, appendFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { writeRenderReport } from './renderReport.ts'
 import { writeReport } from './report.ts'
 
 export const generateCiReport = async (environment: NodeJS.ProcessEnv = process.env): Promise<boolean> => {
@@ -18,10 +19,27 @@ export const generateCiReport = async (environment: NodeJS.ProcessEnv = process.
   if (hasResults) {
     await writeReport({ input, output, title: 'LVCE Typing Benchmark Results' })
   }
-  if (environment.GITHUB_OUTPUT) {
-    await appendFile(environment.GITHUB_OUTPUT, `pages=${hasResults}\n`)
+  let hasRenderResults = true
+  try {
+    await access(join('render-results', 'summary.json'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error
+    }
+    hasRenderResults = false
   }
-  return hasResults
+  if (hasRenderResults) {
+    await writeRenderReport({
+      input: 'render-results',
+      output: join(output, 'rendering'),
+      title: 'Syntax Highlight Rendering Benchmark',
+    })
+  }
+  const hasPages = hasResults || hasRenderResults
+  if (environment.GITHUB_OUTPUT) {
+    await appendFile(environment.GITHUB_OUTPUT, `pages=${hasPages}\n`)
+  }
+  return hasPages
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

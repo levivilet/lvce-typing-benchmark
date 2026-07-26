@@ -65,6 +65,13 @@ jobs:
           WARMUPS: ${{ github.event.inputs.warmups || '1' }}
           PROFILE: ${{ github.event.inputs.profile || 'true' }}
         run: npm run benchmark:ci
+      - name: Run syntax highlight rendering benchmark
+        env:
+          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor,monaco-editor,codemirror' }}
+          ITERATIONS: ${{ github.event.inputs.iterations || '20' }}
+          WARMUPS: ${{ github.event.inputs.warmups || '1' }}
+          PROFILE: ${{ github.event.inputs.profile || 'true' }}
+        run: npm run benchmark:render:ci
       - name: Generate Pages report
         id: report
         if: always()
@@ -73,7 +80,9 @@ jobs:
         if: always()
         with:
           name: lvce-typing-benchmark-results
-          path: results/**
+          path: |
+            results/**
+            render-results/**
       - name: Configure GitHub Pages
         if: always() && steps.report.outputs.pages == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5

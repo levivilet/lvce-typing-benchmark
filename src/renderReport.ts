@@ -1,33 +1,57 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { writeCpuBreakdownReport } from './cpuBreakdownReport.ts'
-import type { BenchmarkSummary, CpuBreakdown, EditorSummary, Stats } from './types.ts'
+import type { RenderBenchmarkSummary, RenderEditorSummary } from './renderTypes.ts'
+import type { Stats } from './types.ts'
 
-interface ReportOptions {
+interface RenderReportOptions {
   readonly input: string
   readonly output: string
   readonly title: string
 }
 
 interface ChartDefinition {
-  readonly fileName: string
-  readonly title: string
   readonly description: string
-  readonly getStats: (summary: EditorSummary) => Stats
+  readonly fileName: string
+  readonly getStats: (summary: RenderEditorSummary) => Stats
+  readonly title: string
+  readonly unit: 'bytes' | 'ms'
 }
 
 const charts: readonly ChartDefinition[] = [
   {
-    fileName: 'typing-duration.svg',
-    title: 'Typing duration',
-    description: 'Wall-clock time to dispatch, process, and paint all keypresses.',
-    getStats: (summary) => summary.typingDurationMs,
+    description: 'Navigation start to the DOMContentLoaded event.',
+    fileName: 'dom-content-loaded.svg',
+    getStats: (summary) => summary.domContentLoadedMs,
+    title: 'DOM content loaded',
+    unit: 'ms',
   },
   {
+    description: 'Navigation start through syntax tokenization and two completed animation frames.',
+    fileName: 'syntax-highlight-render.svg',
+    getStats: (summary) => summary.renderDurationMs,
+    title: 'Syntax-highlighted text rendered',
+    unit: 'ms',
+  },
+  {
+    description: 'Resident memory used by Chromium renderer processes after the highlighted document is painted.',
+    fileName: 'renderer-memory.svg',
+    getStats: (summary) => summary.rendererProcessMemoryBytes,
+    title: 'Renderer process memory',
+    unit: 'bytes',
+  },
+  {
+    description: 'Total sampled JavaScript CPU time across the page and its workers until the highlighted document is painted.',
     fileName: 'javascript-duration.svg',
-    title: 'JavaScript execution',
-    description: 'Total sampled JavaScript CPU time across the page and its workers.',
     getStats: (summary) => summary.javascriptDurationMs,
+    title: 'JavaScript execution',
+    unit: 'ms',
+  },
+  {
+    description: 'Resident memory used by the Chromium GPU process after the highlighted document is painted.',
+    fileName: 'gpu-process-memory.svg',
+    getStats: (summary) => summary.gpuProcessMemoryBytes,
+    title: 'GPU process memory',
+    unit: 'bytes',
   },
 ]
 
@@ -40,14 +64,38 @@ const escapeHtml = (value: string): string => {
     .replaceAll("'", '&#39;')
 }
 
-const formatNumber = (value: number | null): string => {
-  return value === null ? 'n/a' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value)
+const formatNumber = (value: number | null, maximumFractionDigits = 2): string => {
+  return value === null ? 'n/a' : new Intl.NumberFormat('en-US', { maximumFractionDigits }).format(value)
 }
 
-const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string => {
+const formatBytes = (value: number | null): string => {
+  if (value === null) {
+    return 'n/a'
+  }
+  const units = ['B', 'KiB', 'MiB', 'GiB']
+  let scaled = value
+  let unitIndex = 0
+  while (scaled >= 1024 && unitIndex < units.length - 1) {
+    scaled /= 1024
+    unitIndex++
+  }
+  return `${formatNumber(scaled, scaled >= 10 ? 1 : 2)} ${units[unitIndex]}`
+}
+
+const formatValue = (value: number | null, unit: ChartDefinition['unit']): string => {
+  if (unit === 'bytes') {
+    return formatBytes(value)
+  }
+  if (value === null) {
+    return 'n/a'
+  }
+  return `${formatNumber(value)} ms`
+}
+
+const renderChart = (summary: RenderBenchmarkSummary, chart: ChartDefinition): string => {
   const width = 1_200
   const height = 460
-  const left = 124
+  const left = 136
   const right = 30
   const top = 62
   const bottom = 96
@@ -65,7 +113,7 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
     const value = (max * index) / 4
     const y = toY(value)
     return `<line class="grid" x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" />
-<text class="axis-label" x="${left - 14}" y="${y + 5}" text-anchor="end">${formatNumber(value)} ms</text>`
+<text class="axis-label" x="${left - 14}" y="${y + 5}" text-anchor="end">${escapeHtml(formatValue(value, chart.unit))}</text>`
   }).join('\n')
   const groups = summary.editors
     .map((editor, index) => {
@@ -82,7 +130,7 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
           const y = toY(value)
           const barHeight = top + chartHeight - y
           return `<rect class="${className}" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="5" />
-<text class="value" x="${x + barWidth / 2}" y="${Math.max(top + 14, y - 8)}" text-anchor="middle">${formatNumber(value)}</text>`
+<text class="value" x="${x + barWidth / 2}" y="${Math.max(top + 14, y - 8)}" text-anchor="middle">${escapeHtml(formatValue(value, chart.unit))}</text>`
         })
         .join('\n')
       return `${bars}
@@ -98,38 +146,39 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
     .grid { stroke: #dbe3ef; stroke-width: 1; }
     .axis-label, .version-label { font-size: 14px; }
     .editor-label { font-size: 17px; font-weight: 650; fill: #0f172a; }
-    .value { font-size: 14px; font-weight: 650; fill: #0f172a; }
-    .average { fill: #2563eb; }
-    .fastest { fill: #0d9488; }
+    .value { font-size: 13px; font-weight: 650; fill: #0f172a; }
+    .average { fill: #7c3aed; }
+    .fastest { fill: #ea580c; }
   </style>
   <rect width="${width}" height="${height}" fill="#ffffff" />
   ${grid}
   <line x1="${left}" y1="${top + chartHeight}" x2="${width - right}" y2="${top + chartHeight}" stroke="#94a3b8" />
   ${groups}
-  <circle cx="${width - 255}" cy="25" r="7" fill="#2563eb" />
+  <circle cx="${width - 255}" cy="25" r="7" fill="#7c3aed" />
   <text x="${width - 240}" y="30" font-size="15">Average</text>
-  <circle cx="${width - 145}" cy="25" r="7" fill="#0d9488" />
+  <circle cx="${width - 145}" cy="25" r="7" fill="#ea580c" />
   <text x="${width - 130}" y="30" font-size="15">Fastest</text>
 </svg>`
 }
 
-const renderRows = (summary: BenchmarkSummary): string => {
+const renderRows = (summary: RenderBenchmarkSummary): string => {
   return summary.editors
     .map(
       (editor) => `<tr>
   <th scope="row">${escapeHtml(editor.label)} <span>v${escapeHtml(editor.version)}</span></th>
   <td>${editor.iterations}</td>
   <td>${editor.failures}</td>
-  <td>${formatNumber(editor.typingDurationMs.mean)} ms</td>
-  <td>${formatNumber(editor.typingDurationMs.min)} ms</td>
-  <td>${formatNumber(editor.javascriptDurationMs.mean)} ms</td>
-  <td>${formatNumber(editor.javascriptDurationMs.min)} ms</td>
+  <td>${formatValue(editor.domContentLoadedMs.mean, 'ms')}</td>
+  <td>${formatValue(editor.renderDurationMs.mean, 'ms')}</td>
+  <td>${formatValue(editor.javascriptDurationMs.mean, 'ms')}</td>
+  <td>${formatValue(editor.rendererProcessMemoryBytes.mean, 'bytes')}</td>
+  <td>${formatValue(editor.gpuProcessMemoryBytes.mean, 'bytes')}</td>
 </tr>`,
     )
     .join('\n')
 }
 
-const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doctype html>
+const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -141,12 +190,13 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
     body { margin: 0; }
     main { width: min(1380px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 64px; }
     h1 { margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: -0.04em; }
-    .intro { color: #475569; margin: 0 0 32px; font-size: 1.05rem; }
+    .intro, .note { color: #475569; margin: 0 0 20px; font-size: 1.05rem; }
+    .note { max-width: 82ch; }
     .card { background: white; border: 1px solid #d8e0ec; border-radius: 12px; padding: 28px 32px; margin: 16px 0; overflow: auto; }
     h2 { margin: 0 0 4px; font-size: 1.65rem; }
     .description { margin: 0 0 20px; color: #64748b; }
     img { display: block; width: 100%; min-width: 720px; }
-    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1100px; }
     th, td { text-align: left; border-bottom: 1px solid #e2e8f0; padding: 14px 12px; white-space: nowrap; }
     thead th { color: #475569; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
     tbody th span { color: #64748b; font-weight: 400; }
@@ -155,10 +205,10 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
 </head>
 <body>
   <main>
+    <p><a href="../">Typing benchmark</a></p>
     <h1>${escapeHtml(title)}</h1>
-    <p class="intro">${summary.characters} <code>a</code> keypresses per iteration · generated ${escapeHtml(summary.generatedAt)}</p>
-    <p><a href="./rendering/">Syntax highlight rendering benchmark</a></p>
-    <p><a href="./lvce-cpu/">LVCE CPU breakdown</a></p>
+    <p class="intro">${summary.lines}-line <code>${escapeHtml(summary.document)}</code> · generated ${escapeHtml(summary.generatedAt)}</p>
+    <p class="note">Each editor opens the same HTML in a fresh Chromium instance. LVCE is a full IDE while Monaco and CodeMirror are editor components, so the startup and memory numbers describe the tested products rather than an equal feature set.</p>
     ${charts
       .map(
         (chart) => `<section class="card">
@@ -170,9 +220,9 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
       .join('\n')}
     <section class="card">
       <h2>Results</h2>
-      <p class="description">Average and fastest values are computed from successful measured iterations.</p>
+      <p class="description">Average values are computed from successful measured iterations; charts also show the fastest run.</p>
       <table>
-        <thead><tr><th>Editor</th><th>Runs</th><th>Failures</th><th>Typing average</th><th>Typing fastest</th><th>JavaScript average</th><th>JavaScript fastest</th></tr></thead>
+        <thead><tr><th>Editor</th><th>Runs</th><th>Failures</th><th>DOM loaded</th><th>Rendered</th><th>JavaScript</th><th>Renderer memory</th><th>GPU memory</th></tr></thead>
         <tbody>${renderRows(summary)}</tbody>
       </table>
     </section>
@@ -181,19 +231,12 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
 </html>
 `
 
-export const writeReport = async ({ input, output, title }: ReportOptions): Promise<void> => {
-  const summary = JSON.parse(await readFile(join(input, 'summary.json'), 'utf8')) as BenchmarkSummary
-  const cpuBreakdown = JSON.parse(await readFile(join(input, 'cpu-breakdown.json'), 'utf8')) as CpuBreakdown
+export const writeRenderReport = async ({ input, output, title }: RenderReportOptions): Promise<void> => {
+  const summary = JSON.parse(await readFile(join(input, 'summary.json'), 'utf8')) as RenderBenchmarkSummary
   await mkdir(output, { recursive: true })
   await Promise.all([
     ...charts.map((chart) => writeFile(join(output, chart.fileName), renderChart(summary, chart))),
     writeFile(join(output, 'index.html'), renderHtml(summary, title)),
     copyFile(join(input, 'summary.json'), join(output, 'summary.json')),
-    writeCpuBreakdownReport({
-      breakdown: cpuBreakdown,
-      output: join(output, 'lvce-cpu'),
-      source: join(input, 'cpu-breakdown.json'),
-      summary,
-    }),
   ])
 }

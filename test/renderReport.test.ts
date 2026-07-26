@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import test from 'node:test'
+import { writeRenderReport } from '../src/renderReport.ts'
+import type { RenderBenchmarkSummary } from '../src/renderTypes.ts'
+
+test('writes the syntax highlight report and requested charts', async () => {
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'render-report-'))
+  const input = join(temporaryDirectory, 'input')
+  const output = join(temporaryDirectory, 'output')
+  await mkdir(input)
+  const milliseconds = { mean: 10, min: 8, max: 12, p95: 12 }
+  const bytes = { mean: 20 * 1024 * 1024, min: 18 * 1024 * 1024, max: 22 * 1024 * 1024, p95: 22 * 1024 * 1024 }
+  const summary: RenderBenchmarkSummary = {
+    document: 'benchmark.html',
+    generatedAt: '2026-07-26T00:00:00.000Z',
+    lines: 34,
+    editors: [
+      {
+        id: 'codemirror',
+        label: 'CodeMirror',
+        version: '6.0.2',
+        iterations: 20,
+        failures: 0,
+        domContentLoadedMs: milliseconds,
+        renderDurationMs: milliseconds,
+        javascriptDurationMs: milliseconds,
+        javascriptHeapUsedBytes: bytes,
+        rendererProcessMemoryBytes: bytes,
+        gpuProcessMemoryBytes: bytes,
+      },
+    ],
+  }
+  await writeFile(join(input, 'summary.json'), JSON.stringify(summary))
+  await writeRenderReport({ input, output, title: 'Render Results' })
+  const html = await readFile(join(output, 'index.html'), 'utf8')
+  const renderChart = await readFile(join(output, 'syntax-highlight-render.svg'), 'utf8')
+  const gpuChart = await readFile(join(output, 'gpu-process-memory.svg'), 'utf8')
+  assert.match(html, /Render Results/)
+  assert.match(html, /full IDE/)
+  assert.match(renderChart, /CodeMirror/)
+  assert.match(gpuChart, /GPU process memory/)
+})

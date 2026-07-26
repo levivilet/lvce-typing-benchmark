@@ -11,6 +11,7 @@ test('writes the syntax highlight report and requested charts', async () => {
   const input = join(temporaryDirectory, 'input')
   const output = join(temporaryDirectory, 'output')
   await mkdir(input)
+  await mkdir(join(input, 'videos'))
   const milliseconds = { mean: 10, min: 8, max: 12, p95: 12 }
   const bytes = { mean: 20 * 1024 * 1024, min: 18 * 1024 * 1024, max: 22 * 1024 * 1024, p95: 22 * 1024 * 1024 }
   const summary: RenderBenchmarkSummary = {
@@ -34,12 +35,18 @@ test('writes the syntax highlight report and requested charts', async () => {
     ],
   }
   await writeFile(join(input, 'summary.json'), JSON.stringify(summary))
+  await writeFile(join(input, 'videos', 'codemirror.webm'), 'test video')
   await writeRenderReport({ input, output, title: 'Render Results' })
   const html = await readFile(join(output, 'index.html'), 'utf8')
+  const video = await readFile(join(output, 'videos', 'codemirror.webm'), 'utf8')
   const renderChart = await readFile(join(output, 'syntax-highlight-render.svg'), 'utf8')
   const gpuChart = await readFile(join(output, 'gpu-process-memory.svg'), 'utf8')
   assert.match(html, /Render Results/)
   assert.match(html, /full IDE/)
+  assert.match(html, /Recorded loads/)
+  assert.match(html, /src="\.\/videos\/codemirror\.webm"/)
+  assert.ok(html.indexOf('Recorded loads') < html.indexOf('DOM content loaded'))
+  assert.equal(video, 'test video')
   assert.match(renderChart, /CodeMirror/)
   assert.match(gpuChart, /GPU process memory/)
 })

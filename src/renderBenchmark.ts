@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
-import { chromium, type Browser, type CDPSession, type Page } from 'playwright'
+import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { renderDocument } from '../fixtures/renderDocument.ts'
 import { analyzeRenderResults } from './renderAnalyze.ts'
 import { getBrowserProcessMemory } from './browserProcessMemory.ts'
@@ -15,6 +15,8 @@ import type {
   RenderBenchmarkSummary,
   RenderIterationResult,
 } from './renderTypes.ts'
+
+const viewport = { width: 1280, height: 720 }
 
 const installLvceRenderMarker = async (page: Page): Promise<void> => {
   await page.addInitScript(() => {
@@ -137,7 +139,7 @@ const runIteration = async (
       headless: !options.headed,
       args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding'],
     })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } })
+    const context = await browser.newContext({ viewport })
     const page = await context.newPage()
     if (fixture.kind === 'lvce') {
       await installLvceRenderMarker(page)
@@ -196,6 +198,57 @@ const runIteration = async (
   }
 }
 
+const recordEditorLoad = async (
+  fixture: EditorFixture,
+  staticUrl: string,
+  lvceServer: RunningLvceServer | undefined,
+  workspaceFile: string,
+  options: RenderBenchmarkOptions,
+  videoDirectory: string,
+): Promise<void> => {
+  let browser: Browser | undefined
+  let context: BrowserContext | undefined
+  const videoPath = join(videoDirectory, `${fixture.id}.webm`)
+  try {
+    browser = await chromium.launch({
+      headless: !options.headed,
+      args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding'],
+    })
+    context = await browser.newContext({
+      recordVideo: {
+        dir: videoDirectory,
+        size: viewport,
+      },
+      viewport,
+    })
+    const page = await context.newPage()
+    if (fixture.kind === 'lvce') {
+      await installLvceRenderMarker(page)
+    }
+    const video = page.video()
+    if (!video) {
+      throw new Error(`Playwright did not start video recording for ${fixture.label}`)
+    }
+    await page.goto(getEditorUrl(fixture, staticUrl, lvceServer, workspaceFile), {
+      timeout: options.timeout,
+      waitUntil: 'domcontentloaded',
+    })
+    await page.waitForFunction(() => document.documentElement.dataset.renderBenchmarkReady === 'true', undefined, {
+      timeout: options.timeout,
+    })
+    await page.waitForTimeout(500)
+    await context.close()
+    context = undefined
+    const temporaryVideoPath = await video.path()
+    await rm(videoPath, { force: true })
+    await rename(temporaryVideoPath, videoPath)
+    console.info(`${fixture.label} load recording: ${relative(process.cwd(), videoPath) || videoPath}`)
+  } finally {
+    await context?.close().catch(() => undefined)
+    await browser?.close().catch(() => undefined)
+  }
+}
+
 const readManifest = async (staticDirectory: string): Promise<FixtureManifest> => {
   return JSON.parse(await readFile(join(staticDirectory, 'manifest.json'), 'utf8')) as FixtureManifest
 }
@@ -204,9 +257,10 @@ export const runRenderBenchmark = async (options: RenderBenchmarkOptions): Promi
   const output = resolve(options.output)
   const staticDirectory = resolve(options.staticDirectory)
   const profileDirectory = join(output, 'profiles')
+  const videoDirectory = join(output, 'videos')
   const workspace = resolve('.tmp/workspace')
   const workspaceFile = join(workspace, 'benchmark.html')
-  await mkdir(profileDirectory, { recursive: true })
+  await Promise.all([mkdir(profileDirectory, { recursive: true }), mkdir(videoDirectory, { recursive: true })])
   const manifest = await readManifest(staticDirectory)
   const fixtures = options.editors.map((id) => getEditorFixture(manifest.editors, id))
   const staticServer = await startStaticServer(staticDirectory)
@@ -233,6 +287,9 @@ export const runRenderBenchmark = async (options: RenderBenchmarkOptions): Promi
         const status = result.success ? `${result.renderDurationMs.toFixed(2)} ms` : 'failed'
         console.info(`${fixture.label} render ${warmup ? 'warmup' : 'iteration'} ${iteration}: ${status}`)
       }
+    }
+    for (const fixture of fixtures) {
+      await recordEditorLoad(fixture, staticServer.url, lvceServer, workspaceFile, options, videoDirectory)
     }
   } finally {
     await lvceServer?.close().catch(() => undefined)

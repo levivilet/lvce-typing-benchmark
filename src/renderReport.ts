@@ -224,7 +224,7 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
     <p><a href="../">Typing benchmark</a></p>
     <h1>${escapeHtml(title)}</h1>
     <p class="intro">${summary.lines}-line <code>${escapeHtml(summary.document)}</code> · generated ${escapeHtml(summary.generatedAt)}</p>
-    <p class="note">Each editor opens the same HTML in a fresh Chromium instance. LVCE is a full IDE while Monaco and CodeMirror are editor components, so the startup and memory numbers describe the tested products rather than an equal feature set.</p>
+    <p class="note">Each editor opens the same HTML in a fresh Chromium instance. The full LVCE fixture includes IDE services; LVCE Editor Only, Monaco, and CodeMirror are editor-focused fixtures for a closer feature-set comparison.</p>
     <section class="recordings">
       <h2>Recorded loads</h2>
       <p class="description">Each video records one separate, fresh Chromium load from navigation until syntax highlighting is painted. Video capture is not included in the measurements below.</p>

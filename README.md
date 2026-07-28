@@ -1,7 +1,8 @@
 # LVCE Typing Benchmark
 
-Measure typing throughput and syntax-highlight rendering in LVCE Editor, Monaco
-Editor, and CodeMirror under the same Chromium/Playwright workload.
+Measure typing throughput and syntax-highlight rendering in LVCE Editor, an
+editor-only LVCE build, Monaco Editor, and CodeMirror under the same
+Chromium/Playwright workload.
 
 ## Run locally
 
@@ -23,7 +24,10 @@ served by `@lvce-editor/server` during measurement because the editor uses
 LVCE's filesystem and shared-process services. Setup applies a local,
 query-parameter-gated patch to the generated LVCE worker so the render
 benchmark can open `benchmark.html` during startup without changing LVCE's
-normal behavior.
+normal behavior. The editor-only LVCE fixture contains only a minimal renderer
+process, the editor worker, and the syntax-highlighting worker. The renderer
+process communicates directly with both workers; there is no renderer worker
+or workbench chrome.
 
 The default benchmark performs one warmup and 20 measured iterations for every
 editor. Each measured iteration:
@@ -57,8 +61,7 @@ Raw results include DOMContentLoaded, syntax-highlight render time, sampled
 JavaScript execution, main-page JavaScript heap, Chromium renderer-process
 resident memory, and GPU-process resident memory on Linux. `npm run
 report:render` writes a dedicated static report to `.tmp/pages/rendering/` with
-the three load recordings stacked above comparison charts suitable for GitHub
-Pages.
+the load recordings stacked above comparison charts suitable for GitHub Pages.
 
 Useful options:
 

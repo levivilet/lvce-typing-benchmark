@@ -9,7 +9,7 @@ on:
       editors:
         description: "Comma-separated editors"
         required: false
-        default: "lvce-editor,monaco-editor,codemirror"
+        default: "lvce-editor,lvce-editor-minimal,monaco-editor,codemirror"
       characters:
         description: "Characters typed per iteration"
         required: false
@@ -59,7 +59,7 @@ jobs:
       - run: npm run install-browser:ci
       - name: Run benchmark
         env:
-          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor,monaco-editor,codemirror' }}
+          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor,lvce-editor-minimal,monaco-editor,codemirror' }}
           CHARACTERS: ${{ github.event.inputs.characters || '500' }}
           ITERATIONS: ${{ github.event.inputs.iterations || '20' }}
           WARMUPS: ${{ github.event.inputs.warmups || '1' }}
@@ -67,7 +67,7 @@ jobs:
         run: npm run benchmark:ci
       - name: Run syntax highlight rendering benchmark
         env:
-          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor,monaco-editor,codemirror' }}
+          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor,lvce-editor-minimal,monaco-editor,codemirror' }}
           ITERATIONS: ${{ github.event.inputs.iterations || '20' }}
           WARMUPS: ${{ github.event.inputs.warmups || '1' }}
           PROFILE: ${{ github.event.inputs.profile || 'true' }}

@@ -1,4 +1,4 @@
-export type EditorId = 'lvce-editor' | 'monaco-editor' | 'codemirror'
+export type EditorId = 'lvce-editor' | 'lvce-editor-minimal' | 'monaco-editor' | 'codemirror'
 
 export interface EditorFixture {
   readonly id: EditorId

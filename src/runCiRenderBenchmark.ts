@@ -8,7 +8,7 @@ const getBoolean = (value: string | undefined, fallback: boolean): boolean => {
 export const getCiRenderBenchmarkArgs = (environment: NodeJS.ProcessEnv): readonly string[] => {
   const args = [
     '--editors',
-    environment.EDITORS?.trim() || 'lvce-editor,monaco-editor,codemirror',
+    environment.EDITORS?.trim() || 'lvce-editor,lvce-editor-minimal,monaco-editor,codemirror',
     '--iterations',
     environment.ITERATIONS?.trim() || '20',
     '--warmups',

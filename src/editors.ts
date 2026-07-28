@@ -1,9 +1,10 @@
 import type { EditorFixture, EditorId } from './types.ts'
 
-export const editorIds: readonly EditorId[] = ['lvce-editor', 'monaco-editor', 'codemirror']
+export const editorIds: readonly EditorId[] = ['lvce-editor', 'lvce-editor-minimal', 'monaco-editor', 'codemirror']
 
 export const editorLabels: Readonly<Record<EditorId, string>> = {
   'lvce-editor': 'LVCE Editor',
+  'lvce-editor-minimal': 'LVCE Editor (Editor Only)',
   'monaco-editor': 'Monaco Editor',
   codemirror: 'CodeMirror',
 }

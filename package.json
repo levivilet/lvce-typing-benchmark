@@ -23,8 +23,11 @@
   },
   "dependencies": {
     "@codemirror/lang-html": "6.4.11",
+    "@lvce-editor/editor-worker": "19.27.0",
+    "@lvce-editor/renderer-process": "30.19.0",
     "@lvce-editor/server": "0.93.17",
     "@lvce-editor/static-server": "0.93.17",
+    "@lvce-editor/syntax-highlighting-worker": "2.4.3",
     "codemirror": "6.0.2",
     "monaco-editor": "0.56.0"
   },

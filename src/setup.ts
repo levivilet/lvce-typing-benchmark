@@ -31,6 +31,64 @@ const writeHtml = async (output: string, label: string): Promise<void> => {
   await writeFile(join(output, 'index.html'), template.split('EDITOR_NAME').join(label))
 }
 
+const getLvceAssetDirectory = async (): Promise<string> => {
+  const staticRoot = join(root, 'node_modules', '@lvce-editor', 'static-server', 'static')
+  const indexHtml = await readFile(join(staticRoot, 'index.html'), 'utf8')
+  const match = /href="\/([^/]+)\/css\/App\.css"/.exec(indexHtml)
+  if (!match?.[1]) {
+    throw new Error('Could not resolve the LVCE static asset directory')
+  }
+  return join(staticRoot, match[1])
+}
+
+const bundleMinimalLvceEditor = async (outputRoot: string): Promise<void> => {
+  const output = join(outputRoot, 'lvce-editor-minimal')
+  const rendererProcessRoot = join(root, 'node_modules', '@lvce-editor', 'renderer-process', 'dist')
+  const editorWorkerRoot = join(root, 'node_modules', '@lvce-editor', 'editor-worker', 'dist')
+  const syntaxHighlightingWorkerRoot = join(root, 'node_modules', '@lvce-editor', 'syntax-highlighting-worker', 'dist')
+  const lvceAssetDirectory = await getLvceAssetDirectory()
+  await mkdir(output, { recursive: true })
+  await Promise.all([
+    cp(join(rendererProcessRoot, 'editorOnly.css'), join(output, 'index.css')),
+    cp(join(rendererProcessRoot, 'editorOnlyRendererProcessMain.js'), join(output, 'index.js')),
+    cp(join(editorWorkerRoot, 'editorWorkerMain.js'), join(output, 'editorWorkerMain.js')),
+    cp(
+      join(syntaxHighlightingWorkerRoot, 'syntaxHighlightingWorkerMain.js'),
+      join(output, 'syntaxHighlightingWorkerMain.js'),
+    ),
+    cp(
+      join(lvceAssetDirectory, 'extensions', 'builtin.language-basics-html', 'src', 'tokenizeHtml.js'),
+      join(output, 'tokenizeHtml.js'),
+    ),
+  ])
+  const config = {
+    editorOnly: {
+      content: renderDocument,
+      languageId: 'html',
+      tokenizePath: './tokenizeHtml.js',
+      uri: 'file:///benchmark.html',
+    },
+    editorWorkerUrl: './editorWorkerMain.js',
+    syntaxHighlightingWorkerUrl: './syntaxHighlightingWorkerMain.js',
+  }
+  const serializedConfig = JSON.stringify(config).replaceAll('<', '\\u003c')
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${editorLabels['lvce-editor-minimal']} typing benchmark</title>
+    <link rel="stylesheet" href="./index.css" />
+    <script id="Config" type="application/json">${serializedConfig}</script>
+  </head>
+  <body>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>
+`
+  await writeFile(join(output, 'index.html'), html)
+}
+
 const patchLvceStartup = async (staticRoot: string): Promise<void> => {
   const indexHtml = await readFile(join(staticRoot, 'index.html'), 'utf8')
   const workerMatch = /src="\/([^/]+)\/packages\/renderer-process\/dist\/rendererProcessMain\.js"/.exec(indexHtml)
@@ -81,6 +139,7 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
   await Promise.all([
     bundleEditor('monaco-editor', 'monaco', resolvedOutput),
     bundleEditor('codemirror', 'codemirror', resolvedOutput),
+    bundleMinimalLvceEditor(resolvedOutput),
     cp(join(root, 'node_modules', '@lvce-editor', 'static-server', 'static'), join(resolvedOutput, 'lvce-editor'), { recursive: true }),
   ])
   await Promise.all([
@@ -95,6 +154,13 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
       version: await readPackageVersion('@lvce-editor/static-server'),
       kind: 'lvce',
       path: 'lvce-editor/',
+    },
+    {
+      id: 'lvce-editor-minimal',
+      label: editorLabels['lvce-editor-minimal'],
+      version: await readPackageVersion('@lvce-editor/renderer-process'),
+      kind: 'static',
+      path: 'lvce-editor-minimal/',
     },
     {
       id: 'monaco-editor',

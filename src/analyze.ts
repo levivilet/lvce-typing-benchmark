@@ -101,7 +101,7 @@ export const analyzeResults = async (
     characters,
     editors,
   }
-  const lvceResults = measuredResults.filter((result) => result.editor === 'lvce-editor' && result.success)
+  const lvceResults = measuredResults.filter((result) => result.editor === 'lvce-editor-minimal' && result.success)
   const lvceTraces = (
     await Promise.all(lvceResults.map(async (result) => readTrace(result)))
   ).filter((trace): trace is TraceProfile => trace !== null)

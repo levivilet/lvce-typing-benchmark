@@ -6,7 +6,6 @@ import { analyzeRenderResults } from './renderAnalyze.ts'
 import { getBrowserProcessMemory } from './browserProcessMemory.ts'
 import { startCpuTrace, stopCpuTrace } from './cpuTrace.ts'
 import { getEditorFixture } from './editors.ts'
-import { startLvceServer, type RunningLvceServer } from './lvceServer.ts'
 import { startStaticServer } from './staticServer.ts'
 import type { EditorFixture, FixtureManifest } from './types.ts'
 import type {
@@ -18,66 +17,9 @@ import type {
 
 const viewport = { width: 1280, height: 720 }
 
-const installLvceRenderMarker = async (page: Page): Promise<void> => {
-  await page.addInitScript(() => {
-    let done = false
-    let scheduled = false
-    const markWhenPainted = (): void => {
-      if (done || scheduled) {
-        return
-      }
-      const rows = document.querySelectorAll('.EditorRow')
-      const highlightedToken = document.querySelector('.Token.TagName, .Token.AttributeName, .Token.String, .Token.PunctuationTag')
-      if (rows.length < 10 || !highlightedToken) {
-        return
-      }
-      scheduled = true
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          scheduled = false
-          if (done) {
-            return
-          }
-          const currentRows = document.querySelectorAll('.EditorRow')
-          const currentToken = document.querySelector('.Token.TagName, .Token.AttributeName, .Token.String, .Token.PunctuationTag')
-          if (currentRows.length < 10 || !currentToken) {
-            markWhenPainted()
-            return
-          }
-          done = true
-          performance.mark('syntax-highlight-rendered')
-          document.documentElement.dataset.renderBenchmarkReady = 'true'
-          observer.disconnect()
-        })
-      })
-    }
-    const observer = new MutationObserver(markWhenPainted)
-    observer.observe(document, {
-      attributes: true,
-      childList: true,
-      characterData: true,
-      subtree: true,
-    })
-    queueMicrotask(markWhenPainted)
-  })
-}
-
-const getEditorUrl = (
-  fixture: EditorFixture,
-  staticUrl: string,
-  lvceServer: RunningLvceServer | undefined,
-  workspaceFile: string,
-): string => {
-  if (fixture.kind === 'static') {
-    const url = new URL(fixture.path, `${staticUrl}/`)
-    url.searchParams.set('render', 'true')
-    return url.href
-  }
-  if (!lvceServer) {
-    throw new Error('LVCE server was not started')
-  }
-  const url = new URL(lvceServer.url)
-  url.searchParams.set('benchmarkOpenUri', workspaceFile)
+const getEditorUrl = (fixture: EditorFixture, staticUrl: string): string => {
+  const url = new URL(fixture.path, `${staticUrl}/`)
+  url.searchParams.set('render', 'true')
   return url.href
 }
 
@@ -121,8 +63,6 @@ const measureMemory = async (
 const runIteration = async (
   fixture: EditorFixture,
   staticUrl: string,
-  lvceServer: RunningLvceServer | undefined,
-  workspaceFile: string,
   iteration: number,
   warmup: boolean,
   options: RenderBenchmarkOptions,
@@ -141,16 +81,13 @@ const runIteration = async (
     })
     const context = await browser.newContext({ viewport })
     const page = await context.newPage()
-    if (fixture.kind === 'lvce') {
-      await installLvceRenderMarker(page)
-    }
     browserCdp = await browser.newBrowserCDPSession()
     pageCdp = await context.newCDPSession(page)
     if (options.profile && !warmup) {
       await startCpuTrace(browserCdp)
       tracing = true
     }
-    await page.goto(getEditorUrl(fixture, staticUrl, lvceServer, workspaceFile), {
+    await page.goto(getEditorUrl(fixture, staticUrl), {
       timeout: options.timeout,
       waitUntil: 'domcontentloaded',
     })
@@ -201,8 +138,6 @@ const runIteration = async (
 const recordEditorLoad = async (
   fixture: EditorFixture,
   staticUrl: string,
-  lvceServer: RunningLvceServer | undefined,
-  workspaceFile: string,
   options: RenderBenchmarkOptions,
   videoDirectory: string,
 ): Promise<void> => {
@@ -222,14 +157,11 @@ const recordEditorLoad = async (
       viewport,
     })
     const page = await context.newPage()
-    if (fixture.kind === 'lvce') {
-      await installLvceRenderMarker(page)
-    }
     const video = page.video()
     if (!video) {
       throw new Error(`Playwright did not start video recording for ${fixture.label}`)
     }
-    await page.goto(getEditorUrl(fixture, staticUrl, lvceServer, workspaceFile), {
+    await page.goto(getEditorUrl(fixture, staticUrl), {
       timeout: options.timeout,
       waitUntil: 'domcontentloaded',
     })
@@ -258,16 +190,12 @@ export const runRenderBenchmark = async (options: RenderBenchmarkOptions): Promi
   const staticDirectory = resolve(options.staticDirectory)
   const profileDirectory = join(output, 'profiles')
   const videoDirectory = join(output, 'videos')
-  const workspace = resolve('.tmp/workspace')
-  const workspaceFile = join(workspace, 'benchmark.html')
   await Promise.all([mkdir(profileDirectory, { recursive: true }), mkdir(videoDirectory, { recursive: true })])
   const manifest = await readManifest(staticDirectory)
   const fixtures = options.editors.map((id) => getEditorFixture(manifest.editors, id))
   const staticServer = await startStaticServer(staticDirectory)
-  let lvceServer: RunningLvceServer | undefined
   const results: RenderIterationResult[] = []
   try {
-    lvceServer = options.editors.includes('lvce-editor') ? await startLvceServer(workspace, options.timeout) : undefined
     for (const fixture of fixtures) {
       const totalIterations = options.warmups + options.iterations
       for (let index = 0; index < totalIterations; index++) {
@@ -276,8 +204,6 @@ export const runRenderBenchmark = async (options: RenderBenchmarkOptions): Promi
         const result = await runIteration(
           fixture,
           staticServer.url,
-          lvceServer,
-          workspaceFile,
           iteration,
           warmup,
           options,
@@ -289,10 +215,9 @@ export const runRenderBenchmark = async (options: RenderBenchmarkOptions): Promi
       }
     }
     for (const fixture of fixtures) {
-      await recordEditorLoad(fixture, staticServer.url, lvceServer, workspaceFile, options, videoDirectory)
+      await recordEditorLoad(fixture, staticServer.url, options, videoDirectory)
     }
   } finally {
-    await lvceServer?.close().catch(() => undefined)
     await staticServer.close().catch(() => undefined)
   }
   const metadata: RenderBenchmarkMetadata = {

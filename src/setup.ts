@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 import { renderDocument } from '../fixtures/renderDocument.ts'
 import { editorLabels } from './editors.ts'
+import { ideLabels } from './ides.ts'
 import type { EditorFixture, FixtureManifest } from './types.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -16,6 +17,10 @@ const readPackageVersion = async (packageName: string): Promise<string> => {
     throw new Error(`No version found in ${packageJsonPath}`)
   }
   return packageJson.version
+}
+
+const readTextVersion = async (packageName: string, fileName: string): Promise<string> => {
+  return (await readFile(join(root, 'node_modules', packageName, fileName), 'utf8')).trim()
 }
 
 const assertSafeOutput = (output: string): void => {
@@ -89,29 +94,42 @@ const bundleMinimalLvceEditor = async (outputRoot: string): Promise<void> => {
   await writeFile(join(output, 'index.html'), html)
 }
 
-const patchLvceStartup = async (staticRoot: string): Promise<void> => {
-  const indexHtml = await readFile(join(staticRoot, 'index.html'), 'utf8')
-  const workerMatch = /src="\/([^/]+)\/packages\/renderer-process\/dist\/rendererProcessMain\.js"/.exec(indexHtml)
-  if (!workerMatch?.[1]) {
-    throw new Error('Could not resolve the LVCE static asset directory')
-  }
-  const workerPath = join(staticRoot, workerMatch[1], 'packages', 'renderer-worker', 'dist', 'rendererWorkerMain.js')
-  const source = await readFile(workerPath, 'utf8')
-  if (source.includes("searchParams.get('benchmarkOpenUri')")) {
-    return
-  }
-  const marker = '  await watcherPromises;\n};'
-  if (!source.includes(marker)) {
-    throw new Error(`Could not find the LVCE startup patch point in ${workerPath}`)
-  }
-  const markerIndex = source.indexOf(marker)
-  const replacement = `  await watcherPromises;
-  const benchmarkOpenUri = new URL(initData.Location.href).searchParams.get('benchmarkOpenUri');
-  if (benchmarkOpenUri) {
-    await execute$4('Main.openUri', benchmarkOpenUri);
-  }
-};`
-  await writeFile(workerPath, `${source.slice(0, markerIndex)}${replacement}${source.slice(markerIndex + marker.length)}`)
+const bundleVscode = async (outputRoot: string): Promise<void> => {
+  const packageRoot = join(root, 'node_modules', '@github1s', 'vscode-web')
+  const output = join(outputRoot, 'vscode-ide')
+  await mkdir(output, { recursive: true })
+  await Promise.all([
+    cp(join(packageRoot, 'dependencies'), join(outputRoot, 'dependencies'), { recursive: true }),
+    cp(join(packageRoot, 'extensions'), join(outputRoot, 'extensions'), { recursive: true }),
+    cp(join(packageRoot, 'nls'), join(outputRoot, 'nls'), { recursive: true }),
+    cp(join(packageRoot, 'vscode'), join(outputRoot, 'vscode'), { recursive: true }),
+  ])
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VS Code startup benchmark</title>
+    <link rel="stylesheet" href="/vscode/vs/workbench/workbench.web.main.css" />
+  </head>
+  <body>
+    <script src="/vscode/nls.messages.js"></script>
+    <script>
+      globalThis._VSCODE_FILE_ROOT = new URL('/vscode/', window.location.origin).toString()
+    </script>
+    <script type="module">
+      import { create, URI } from '/vscode/vs/workbench/workbench.web.main.internal.js'
+      create(document.body, {
+        webviewEndpoint: '/vscode/vs/workbench/contrib/webview/browser/pre',
+        workspaceProvider: {
+          workspace: { workspaceUri: URI.from({ scheme: 'tmp', path: '/benchmark.code-workspace' }) },
+        },
+      })
+    </script>
+  </body>
+</html>
+`
+  await writeFile(join(output, 'index.html'), html)
 }
 
 const bundleEditor = async (id: 'monaco-editor' | 'codemirror', sourceDirectory: 'monaco' | 'codemirror', outputRoot: string): Promise<void> => {
@@ -140,21 +158,10 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
     bundleEditor('monaco-editor', 'monaco', resolvedOutput),
     bundleEditor('codemirror', 'codemirror', resolvedOutput),
     bundleMinimalLvceEditor(resolvedOutput),
+    bundleVscode(resolvedOutput),
     cp(join(root, 'node_modules', '@lvce-editor', 'static-server', 'static'), join(resolvedOutput, 'lvce-editor'), { recursive: true }),
   ])
-  await Promise.all([
-    patchLvceStartup(join(resolvedOutput, 'lvce-editor')),
-    patchLvceStartup(join(root, 'node_modules', '@lvce-editor', 'static-server', 'static')),
-  ])
-
   const editors: readonly EditorFixture[] = [
-    {
-      id: 'lvce-editor',
-      label: editorLabels['lvce-editor'],
-      version: await readPackageVersion('@lvce-editor/static-server'),
-      kind: 'lvce',
-      path: 'lvce-editor/',
-    },
     {
       id: 'lvce-editor-minimal',
       label: editorLabels['lvce-editor-minimal'],
@@ -177,15 +184,32 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
       path: 'codemirror/',
     },
   ]
+  const ides = [
+    {
+      id: 'lvce-editor',
+      label: ideLabels['lvce-editor'],
+      version: await readPackageVersion('@lvce-editor/static-server'),
+      kind: 'lvce',
+      path: 'lvce-editor/',
+    },
+    {
+      id: 'vscode',
+      label: ideLabels.vscode,
+      version: await readTextVersion('@github1s/vscode-web', '.VERSION'),
+      kind: 'static',
+      path: 'vscode-ide/',
+    },
+  ] as const
   const manifest: FixtureManifest = {
     generatedAt: new Date().toISOString(),
     editors,
+    ides,
   }
   await writeFile(join(resolvedOutput, 'manifest.json'), `${JSON.stringify(manifest, undefined, 2)}\n`)
   await mkdir(join(root, '.tmp', 'workspace'), { recursive: true })
   await writeFile(join(root, '.tmp', 'workspace', 'benchmark.txt'), '')
   await writeFile(join(root, '.tmp', 'workspace', 'benchmark.html'), renderDocument)
-  console.info(`Generated ${editors.length} editor fixtures in ${resolvedOutput}`)
+  console.info(`Generated ${editors.length} editor fixtures and ${ides.length} IDE fixtures in ${resolvedOutput}`)
   return manifest
 }
 

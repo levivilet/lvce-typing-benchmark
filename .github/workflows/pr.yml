@@ -36,6 +36,12 @@ jobs:
           WARMUPS: "0"
           PROFILE: "true"
         run: npm run benchmark:render:ci
+      - name: Run IDE startup smoke test
+        env:
+          ITERATIONS: "1"
+          WARMUPS: "0"
+          PROFILE: "true"
+        run: npm run benchmark:startup:ci
       - name: Generate report
         if: always()
         run: npm run ci:report
@@ -46,4 +52,5 @@ jobs:
           path: |
             results/**
             render-results/**
+            startup-results/**
             .tmp/pages/**

@@ -60,7 +60,7 @@ const renderBars = (breakdown: CpuBreakdown): string => {
 }
 
 const renderHtml = (summary: BenchmarkSummary, breakdown: CpuBreakdown): string => {
-  const lvce = summary.editors.find((editor) => editor.id === 'lvce-editor')
+  const lvce = summary.editors.find((editor) => editor.id === 'lvce-editor-minimal')
   const workerShare = breakdown.contexts
     .filter((context) => context.kind === 'worker')
     .reduce((total, context) => total + context.share, 0)
@@ -138,8 +138,8 @@ const renderHtml = (summary: BenchmarkSummary, breakdown: CpuBreakdown): string 
     <header class="hero">
       <div>
         <p class="eyebrow">Browser-wide V8 sampling</p>
-        <h1>LVCE typing CPU breakdown</h1>
-        <p class="intro">Function-level self and inclusive CPU time across the renderer process and every LVCE web worker while typing 500 characters.</p>
+        <h1>LVCE Editor Only typing CPU breakdown</h1>
+        <p class="intro">Function-level self and inclusive CPU time across the minimal renderer process and its LVCE web workers while typing 500 characters.</p>
       </div>
       <nav class="links"><a class="pill" href="../">Editor comparison</a><a class="pill" href="./cpu-breakdown.json">Raw analysis</a></nav>
     </header>

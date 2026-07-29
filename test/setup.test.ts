@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import test from 'node:test'
 import { setupFixtures } from '../src/setup.ts'
 
-test('generates an editor-only LVCE fixture without a renderer worker', async () => {
+test('generates separate editor and IDE fixtures', async () => {
   const output = resolve('.tmp', 'setup-test-static')
   try {
     const manifest = await setupFixtures(output)
@@ -15,7 +15,7 @@ test('generates an editor-only LVCE fixture without a renderer worker', async ()
     assert.deepEqual(fixture, {
       id: 'lvce-editor-minimal',
       kind: 'static',
-      label: 'LVCE Editor (Editor Only)',
+      label: 'LVCE Editor Only',
       path: 'lvce-editor-minimal/',
       version: rendererPackage.version,
     })
@@ -41,6 +41,23 @@ test('generates an editor-only LVCE fixture without a renderer worker', async ()
     assert.match(html, /"editorWorkerUrl":"\.\/editorWorkerMain\.js"/)
     assert.match(html, /"syntaxHighlightingWorkerUrl":"\.\/syntaxHighlightingWorkerMain\.js"/)
     assert.doesNotMatch(html, /rendererWorkerUrl/)
+
+    const vscodeFixture = manifest.ides.find((ide) => ide.id === 'vscode')
+    assert.deepEqual(vscodeFixture, {
+      id: 'vscode',
+      kind: 'static',
+      label: 'VS Code',
+      path: 'vscode-ide/',
+      version: '1.108.2',
+    })
+    assert.deepEqual(
+      manifest.ides.map((ide) => ide.id),
+      ['lvce-editor', 'vscode'],
+    )
+    const vscodeHtml = await readFile(join(output, 'vscode-ide', 'index.html'), 'utf8')
+    assert.match(vscodeHtml, /workbench\.web\.main\.internal\.js/)
+    assert.match(vscodeHtml, /benchmark\.code-workspace/)
+    assert.equal(await readFile(join(output, 'vscode', 'nls.messages.js'), 'utf8').then(Boolean), true)
   } finally {
     await rm(output, { force: true, recursive: true })
   }

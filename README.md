@@ -1,8 +1,8 @@
 # LVCE Typing Benchmark
 
-Measure typing throughput and syntax-highlight rendering in LVCE Editor, an
-editor-only LVCE build, Monaco Editor, and CodeMirror under the same
-Chromium/Playwright workload.
+Measure editor typing and syntax-highlight rendering in LVCE Editor Only,
+Monaco Editor, and CodeMirror, plus browser-side IDE startup in the full LVCE
+Editor and VS Code, under repeatable Chromium/Playwright workloads.
 
 ## Run locally
 
@@ -15,22 +15,24 @@ npm run benchmark
 npm run report
 npm run benchmark:render
 npm run report:render
+npm run benchmark:startup
+npm run report:startup
 ```
 
-`npm run setup` generates `.tmp/static/` with a pinned, rendered fixture for
-each editor. Monaco and CodeMirror are bundled with esbuild. LVCE's published
-static assets are copied from `@lvce-editor/static-server`; its fixture is
-served by `@lvce-editor/server` during measurement because the editor uses
-LVCE's filesystem and shared-process services. Setup applies a local,
-query-parameter-gated patch to the generated LVCE worker so the render
-benchmark can open `benchmark.html` during startup without changing LVCE's
-normal behavior. The editor-only LVCE fixture contains only a minimal renderer
-process, the editor worker, and the syntax-highlighting worker. The renderer
-process communicates directly with both workers; there is no renderer worker
-or workbench chrome.
+`npm run setup` generates `.tmp/static/` with pinned fixtures. Monaco and
+CodeMirror are bundled with esbuild. The editor-only LVCE fixture contains only
+a minimal renderer process, the editor worker, and the syntax-highlighting
+worker. The renderer process communicates directly with both workers; there is
+no renderer worker or workbench chrome.
 
-The default benchmark performs one warmup and 20 measured iterations for every
-editor. Each measured iteration:
+The IDE startup fixtures are separate. LVCE's published assets are copied from
+`@lvce-editor/static-server` and served by `@lvce-editor/server`. VS Code 1.108.2
+comes from the pinned `@github1s/vscode-web` static export used by GitHub1s and
+is served entirely from local generated assets. The VS Code package is roughly
+107 MB unpacked but is not committed to this repository.
+
+The default typing benchmark performs one warmup and 20 measured iterations for
+LVCE Editor Only, Monaco, and CodeMirror. Each measured iteration:
 
 1. opens a fresh browser context at 1280×720,
 2. focuses an empty plain-text editor,
@@ -48,20 +50,35 @@ execution-context shares, bundled source locations, and samples per run.
 
 ## Syntax highlight rendering benchmark
 
-`npm run benchmark:render` runs one warmup and 20 measured iterations for every
-editor. Every iteration launches a fresh Chromium instance at 1280×720 and
-opens the same roughly 30-line Hello World HTML document with HTML syntax
-highlighting enabled. The measurement ends after highlighted tokens are in the
-DOM and two animation frames have completed. After the measured runs, Playwright
-records one separate fresh load per editor to `render-results/videos/`. Keeping
-the recorded loads separate prevents video encoding from affecting benchmark
-measurements.
+`npm run benchmark:render` runs one warmup and 20 measured iterations for the
+same three editor-only fixtures. Every iteration launches a fresh Chromium
+instance at 1280×720 and opens the same roughly 30-line Hello World HTML
+document with HTML syntax highlighting enabled. The measurement ends after
+highlighted tokens are in the DOM and two animation frames have completed.
+After the measured runs, Playwright records one separate fresh load per editor
+to `render-results/videos/`. Keeping the recorded loads separate prevents video
+encoding from affecting benchmark measurements.
 
 Raw results include DOMContentLoaded, syntax-highlight render time, sampled
 JavaScript execution, main-page JavaScript heap, Chromium renderer-process
 resident memory, and GPU-process resident memory on Linux. `npm run
 report:render` writes a dedicated static report to `.tmp/pages/rendering/` with
 the load recordings stacked above comparison charts suitable for GitHub Pages.
+
+## IDE startup benchmark
+
+`npm run benchmark:startup` compares the full LVCE Editor workbench with the
+static VS Code web workbench. Each warmup and measured iteration launches a
+fresh Chromium process with fresh browser storage at 1280×720 and opens an empty
+local workspace. Both the LVCE server and the static fixture server are ready
+before measurement begins.
+
+Startup is measured from browser navigation until the visible workbench shell
+is present and has painted for two animation frames. Raw results include
+startup wall time, DOMContentLoaded, and sampled JavaScript execution. After
+the measured runs, separate startup recordings are written to
+`startup-results/videos/`. `npm run report:startup` writes the comparison page
+to `.tmp/pages/ide-startup/`.
 
 Useful options:
 
@@ -72,12 +89,14 @@ npm run benchmark -- --no-profile
 npm run report -- --input results --output .tmp/pages
 npm run benchmark:render -- --editors monaco-editor,codemirror --iterations 5
 npm run report:render -- --input render-results --output .tmp/pages/rendering
+npm run benchmark:startup -- --ides lvce-editor,vscode --iterations 5
+npm run report:startup -- --input startup-results --output .tmp/pages/ide-startup
 ```
 
 ## Continuous integration
 
-Pull requests run lint, tests, type checking, fixture generation, and one full
-500-character typing iteration plus one profiled rendering iteration per
-editor. Pushes to `main` run 20 profiled iterations for both benchmarks, upload
-the raw results/profiles and load recordings as an artifact, and deploy the
-generated reports and recordings to GitHub Pages.
+Pull requests run lint, tests, type checking, fixture generation, and one
+profiled smoke iteration for typing, rendering, and IDE startup. Pushes to
+`main` run 20 profiled iterations for all three benchmarks, upload the raw
+results, profiles, and load recordings as an artifact, and deploy separate
+editor, rendering, and IDE startup reports to GitHub Pages.

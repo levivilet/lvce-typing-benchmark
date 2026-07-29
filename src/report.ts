@@ -157,8 +157,9 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
   <main>
     <h1>${escapeHtml(title)}</h1>
     <p class="intro">${summary.characters} <code>a</code> keypresses per iteration · generated ${escapeHtml(summary.generatedAt)}</p>
+    <p><a href="./ide-startup/">IDE startup benchmark</a></p>
     <p><a href="./rendering/">Syntax highlight rendering benchmark</a></p>
-    <p><a href="./lvce-cpu/">LVCE CPU breakdown</a></p>
+    <p><a href="./lvce-cpu/">LVCE Editor Only CPU breakdown</a></p>
     ${charts
       .map(
         (chart) => `<section class="card">

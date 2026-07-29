@@ -1,7 +1,17 @@
-export type EditorId = 'lvce-editor' | 'lvce-editor-minimal' | 'monaco-editor' | 'codemirror'
+export type EditorId = 'lvce-editor-minimal' | 'monaco-editor' | 'codemirror'
+
+export type IdeId = 'lvce-editor' | 'vscode'
 
 export interface EditorFixture {
   readonly id: EditorId
+  readonly label: string
+  readonly version: string
+  readonly kind: 'static'
+  readonly path: string
+}
+
+export interface IdeFixture {
+  readonly id: IdeId
   readonly label: string
   readonly version: string
   readonly kind: 'lvce' | 'static'
@@ -11,6 +21,7 @@ export interface EditorFixture {
 export interface FixtureManifest {
   readonly generatedAt: string
   readonly editors: readonly EditorFixture[]
+  readonly ides: readonly IdeFixture[]
 }
 
 export interface BenchmarkMetadata {

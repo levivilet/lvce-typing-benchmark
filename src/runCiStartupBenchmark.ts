@@ -1,20 +1,20 @@
 import { pathToFileURL } from 'node:url'
-import { runRenderCli } from './renderMain.ts'
+import { runStartupCli } from './startupMain.ts'
 
 const getBoolean = (value: string | undefined, fallback: boolean): boolean => {
   return value === undefined || value.trim() === '' ? fallback : value.trim() === 'true'
 }
 
-export const getCiRenderBenchmarkArgs = (environment: NodeJS.ProcessEnv): readonly string[] => {
+export const getCiStartupBenchmarkArgs = (environment: NodeJS.ProcessEnv): readonly string[] => {
   const args = [
-    '--editors',
-    environment.EDITORS?.trim() || 'lvce-editor-minimal,monaco-editor,codemirror',
+    '--ides',
+    environment.IDES?.trim() || 'lvce-editor,vscode',
     '--iterations',
     environment.ITERATIONS?.trim() || '20',
     '--warmups',
     environment.WARMUPS?.trim() || '1',
     '--output',
-    'render-results',
+    'startup-results',
     '--static',
     '.tmp/static',
   ]
@@ -24,12 +24,12 @@ export const getCiRenderBenchmarkArgs = (environment: NodeJS.ProcessEnv): readon
   return args
 }
 
-export const runCiRenderBenchmark = async (environment: NodeJS.ProcessEnv = process.env): Promise<void> => {
-  await runRenderCli(getCiRenderBenchmarkArgs(environment))
+export const runCiStartupBenchmark = async (environment: NodeJS.ProcessEnv = process.env): Promise<void> => {
+  await runStartupCli(getCiStartupBenchmarkArgs(environment))
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  runCiRenderBenchmark().catch((error) => {
+  runCiStartupBenchmark().catch((error) => {
     console.error(error instanceof Error ? error.stack || error.message : error)
     process.exitCode = 1
   })

@@ -16,6 +16,7 @@ const contentTypes: Readonly<Record<string, string>> = {
   '.map': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.ttf': 'font/ttf',
+  '.wasm': 'application/wasm',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
 }

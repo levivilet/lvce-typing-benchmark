@@ -1,10 +1,9 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { basename, join, relative, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { chromium, type Browser, type CDPSession, type Page } from 'playwright'
 import { analyzeResults } from './analyze.ts'
 import { startCpuTrace, stopCpuTrace } from './cpuTrace.ts'
 import { getEditorFixture } from './editors.ts'
-import { startLvceServer, type RunningLvceServer } from './lvceServer.ts'
 import { startStaticServer } from './staticServer.ts'
 import type { BenchmarkMetadata, BenchmarkOptions, BenchmarkSummary, EditorFixture, FixtureManifest, IterationResult } from './types.ts'
 
@@ -48,33 +47,13 @@ const prepareStaticEditor = async (page: Page, url: string, timeout: number): Pr
   await page.evaluate(() => (globalThis as unknown as Window).__typingBenchmark?.focus())
 }
 
-const prepareLvceEditor = async (page: Page, url: string, workspaceFile: string, timeout: number): Promise<void> => {
-  await page.goto(url, { timeout, waitUntil: 'load' })
-  const fileName = basename(workspaceFile)
-  const file = page.getByText(fileName, { exact: true }).first()
-  await file.waitFor({ state: 'visible', timeout })
-  await file.dblclick()
-  const editorInput = page.locator('.EditorInput textarea')
-  await editorInput.waitFor({ state: 'attached', timeout })
-  await editorInput.focus()
-}
-
 const prepareEditor = async (
   page: Page,
   fixture: EditorFixture,
   staticUrl: string,
-  lvceServer: RunningLvceServer | undefined,
-  workspaceFile: string,
   timeout: number,
 ): Promise<void> => {
-  if (fixture.kind === 'lvce') {
-    if (!lvceServer) {
-      throw new Error('LVCE server was not started')
-    }
-    await prepareLvceEditor(page, lvceServer.url, workspaceFile, timeout)
-  } else {
-    await prepareStaticEditor(page, new URL(fixture.path, `${staticUrl}/`).href, timeout)
-  }
+  await prepareStaticEditor(page, new URL(fixture.path, `${staticUrl}/`).href, timeout)
   await page.keyboard.press('Control+A')
   await page.keyboard.press('Backspace')
   await waitForTextLength(page, 0, timeout)
@@ -85,8 +64,6 @@ const runIteration = async (
   browser: Browser,
   fixture: EditorFixture,
   staticUrl: string,
-  lvceServer: RunningLvceServer | undefined,
-  workspaceFile: string,
   iteration: number,
   warmup: boolean,
   options: BenchmarkOptions,
@@ -100,7 +77,7 @@ const runIteration = async (
   try {
     const page = await context.newPage()
     browserCdp = options.profile && !warmup ? await browser.newBrowserCDPSession() : undefined
-    await prepareEditor(page, fixture, staticUrl, lvceServer, workspaceFile, options.timeout)
+    await prepareEditor(page, fixture, staticUrl, options.timeout)
     if (browserCdp) {
       await startCpuTrace(browserCdp)
       tracing = true
@@ -148,17 +125,13 @@ export const runBenchmark = async (options: BenchmarkOptions): Promise<Benchmark
   const output = resolve(options.output)
   const staticDirectory = resolve(options.staticDirectory)
   const profileDirectory = join(output, 'profiles')
-  const workspace = resolve('.tmp/workspace')
-  const workspaceFile = join(workspace, 'benchmark.txt')
   await mkdir(profileDirectory, { recursive: true })
   const manifest = await readManifest(staticDirectory)
   const fixtures = options.editors.map((id) => getEditorFixture(manifest.editors, id))
   const staticServer = await startStaticServer(staticDirectory)
-  let lvceServer: RunningLvceServer | undefined
   let browser: Browser | undefined
   const results: IterationResult[] = []
   try {
-    lvceServer = options.editors.includes('lvce-editor') ? await startLvceServer(workspace, options.timeout) : undefined
     browser = await chromium.launch({
       headless: !options.headed,
       args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding'],
@@ -172,8 +145,6 @@ export const runBenchmark = async (options: BenchmarkOptions): Promise<Benchmark
           browser,
           fixture,
           staticServer.url,
-          lvceServer,
-          workspaceFile,
           iteration,
           warmup,
           options,
@@ -186,7 +157,6 @@ export const runBenchmark = async (options: BenchmarkOptions): Promise<Benchmark
     }
   } finally {
     await browser?.close().catch(() => undefined)
-    await lvceServer?.close().catch(() => undefined)
     await staticServer.close().catch(() => undefined)
   }
   const metadata: BenchmarkMetadata = {

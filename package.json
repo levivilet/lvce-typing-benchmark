@@ -9,11 +9,14 @@
     "benchmark:ci": "node src/runCiBenchmark.ts",
     "benchmark:render": "npm run setup && node src/renderMain.ts",
     "benchmark:render:ci": "node src/runCiRenderBenchmark.ts",
+    "benchmark:startup": "npm run setup && node src/startupMain.ts",
+    "benchmark:startup:ci": "node src/runCiStartupBenchmark.ts",
     "ci:report": "node src/generateCiReport.ts",
     "install-browser:ci": "playwright install --with-deps chromium",
     "lint": "eslint .",
     "report": "node src/reportCli.ts",
     "report:render": "node src/renderReportCli.ts",
+    "report:startup": "node src/startupReportCli.ts",
     "setup": "node src/setup.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "type-check": "tsc --noEmit"
@@ -23,6 +26,7 @@
   },
   "dependencies": {
     "@codemirror/lang-html": "6.4.11",
+    "@github1s/vscode-web": "0.27.0",
     "@lvce-editor/editor-worker": "19.27.0",
     "@lvce-editor/renderer-process": "30.19.0",
     "@lvce-editor/server": "0.93.17",

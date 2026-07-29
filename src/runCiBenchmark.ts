@@ -10,7 +10,7 @@ export const getCiBenchmarkArgs = (environment: NodeJS.ProcessEnv): readonly str
     '--characters',
     environment.CHARACTERS?.trim() || '500',
     '--editors',
-    environment.EDITORS?.trim() || 'lvce-editor,lvce-editor-minimal,monaco-editor,codemirror',
+    environment.EDITORS?.trim() || 'lvce-editor-minimal,monaco-editor,codemirror',
     '--iterations',
     environment.ITERATIONS?.trim() || '20',
     '--warmups',

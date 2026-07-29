@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { writeRenderReport } from './renderReport.ts'
 import { writeReport } from './report.ts'
+import { writeStartupReport } from './startupReport.ts'
 
 export const generateCiReport = async (environment: NodeJS.ProcessEnv = process.env): Promise<boolean> => {
   const input = 'results'
@@ -35,7 +36,23 @@ export const generateCiReport = async (environment: NodeJS.ProcessEnv = process.
       title: 'Syntax Highlight Rendering Benchmark',
     })
   }
-  const hasPages = hasResults || hasRenderResults
+  let hasStartupResults = true
+  try {
+    await access(join('startup-results', 'summary.json'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error
+    }
+    hasStartupResults = false
+  }
+  if (hasStartupResults) {
+    await writeStartupReport({
+      input: 'startup-results',
+      output: join(output, 'ide-startup'),
+      title: 'IDE Startup Benchmark',
+    })
+  }
+  const hasPages = hasResults || hasRenderResults || hasStartupResults
   if (environment.GITHUB_OUTPUT) {
     await appendFile(environment.GITHUB_OUTPUT, `pages=${hasPages}\n`)
   }

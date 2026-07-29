@@ -44,6 +44,23 @@ const formatNumber = (value: number | null): string => {
   return value === null ? 'n/a' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value)
 }
 
+const formatBytes = (value: number | null): string => {
+  if (value === null) {
+    return 'n/a'
+  }
+  return `${formatNumber(value / 1_000_000)} MB`
+}
+
+const formatDurationShare = (duration: number | null, startup: number | null): string => {
+  if (duration === null) {
+    return 'n/a'
+  }
+  if (startup === null || startup === 0) {
+    return `${formatNumber(duration)} ms`
+  }
+  return `${formatNumber(duration)} ms (${formatNumber((duration / startup) * 100)}%)`
+}
+
 const renderChart = (summary: StartupBenchmarkSummary, chart: ChartDefinition): string => {
   const width = 1_200
   const height = 460
@@ -139,6 +156,121 @@ const renderVideos = (summary: StartupBenchmarkSummary): string => {
     .join('\n')
 }
 
+const renderBreakdownHeaders = (summary: StartupBenchmarkSummary): string => {
+  return summary.ides
+    .map((ide) => `<th>${escapeHtml(ide.label)} average</th>`)
+    .join('')
+}
+
+const renderDurationBreakdown = (summary: StartupBenchmarkSummary): string => {
+  const rows = [
+    {
+      description: 'Sampled V8 function execution across the page and workers.',
+      getValue: (ide: StartupIdeSummary) => ide.javascriptDurationMs.mean,
+      label: 'JavaScript execution',
+    },
+    {
+      description: 'Script and ES module compilation, including background parsing.',
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.compileParseMs.mean,
+      label: 'Module compile / parse',
+    },
+    {
+      description: 'V8 isolate deserialization and JavaScript context creation.',
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.v8InitializationMs.mean,
+      label: 'V8 / context initialization',
+    },
+    {
+      description: 'Starting the trace CPU profilers for the page and worker contexts.',
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.profilerStartupMs.mean,
+      label: 'CPU profiler startup',
+    },
+    {
+      description: 'Minor, major, and V8 garbage-collection events.',
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.garbageCollectionMs.mean,
+      label: 'Garbage collection',
+    },
+    {
+      description: 'HTML and CSS parsing, style, layout, pre-paint, paint, and layerization.',
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.renderMs.mean,
+      label: 'Browser rendering',
+    },
+    {
+      description: 'Handling posted messages between page and worker contexts.',
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.messageHandlingMs.mean,
+      label: 'Message handling',
+    },
+  ] as const
+  return rows
+    .map(
+      (row) => `<tr>
+  <th scope="row">${row.label}</th>
+  ${summary.ides
+    .map((ide) => `<td>${formatDurationShare(row.getValue(ide), ide.startupDurationMs.mean)}</td>`)
+    .join('')}
+  <td class="meaning">${row.description}</td>
+</tr>`,
+    )
+    .join('\n')
+}
+
+const renderStartupShape = (summary: StartupBenchmarkSummary): string => {
+  const rows = [
+    {
+      format: (value: number | null) => `${formatNumber(value)} ms`,
+      getValue: (ide: StartupIdeSummary) => ide.domContentLoadedMs.mean,
+      label: 'DOMContentLoaded',
+    },
+    {
+      format: (value: number | null) => `${formatNumber(value)} ms`,
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.postDomContentLoadedMs.mean,
+      label: 'After DOMContentLoaded',
+    },
+    {
+      format: formatBytes,
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.totalResourceBytes.mean,
+      label: 'Trace-visible decoded resources',
+    },
+    {
+      format: formatBytes,
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.largestScriptBytes.mean,
+      label: 'Largest script',
+    },
+    {
+      format: (value: number | null) => `${formatNumber(value)} ms`,
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.largestScriptTransferMs.mean,
+      label: 'Largest script transfer',
+    },
+    {
+      format: formatNumber,
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.requestCount.mean,
+      label: 'Completed trace-visible requests',
+    },
+    {
+      format: formatNumber,
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.dedicatedWorkerThreadCount.mean,
+      label: 'Dedicated worker threads',
+    },
+    {
+      format: formatNumber,
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.compiledModuleCount.mean,
+      label: 'Compiled modules',
+    },
+    {
+      format: formatNumber,
+      getValue: (ide: StartupIdeSummary) => ide.traceBreakdown.profilerStartCount.mean,
+      label: 'Profiled JavaScript contexts',
+    },
+  ] as const
+  return rows
+    .map(
+      (row) => `<tr>
+  <th scope="row">${row.label}</th>
+  ${summary.ides.map((ide) => `<td>${row.format(row.getValue(ide))}</td>`).join('')}
+</tr>`,
+    )
+    .join('\n')
+}
+
 const renderHtml = (summary: StartupBenchmarkSummary, title: string): string => `<!doctype html>
 <html lang="en">
 <head>
@@ -165,6 +297,9 @@ const renderHtml = (summary: StartupBenchmarkSummary, title: string): string => 
     table { width: 100%; border-collapse: collapse; min-width: 940px; }
     th, td { text-align: left; border-bottom: 1px solid #e2e8f0; padding: 14px 12px; white-space: nowrap; }
     thead th { color: #475569; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    td.meaning { color: #64748b; white-space: normal; min-width: 360px; }
+    .callout { color: #475569; background: #f8fafc; border-left: 4px solid #7c3aed; padding: 14px 16px; margin: 18px 0 24px; }
+    .subheading { margin-top: 30px; }
     code { padding: 2px 6px; border-radius: 5px; background: #eef2f7; }
   </style>
 </head>
@@ -194,6 +329,21 @@ const renderHtml = (summary: StartupBenchmarkSummary, title: string): string => 
       <table>
         <thead><tr><th>IDE</th><th>Runs</th><th>Failures</th><th>Startup average</th><th>Startup fastest</th><th>Startup p95</th><th>JavaScript average</th></tr></thead>
         <tbody>${renderRows(summary)}</tbody>
+      </table>
+    </section>
+    <section class="card">
+      <h2>Where startup time goes</h2>
+      <p class="description">Average attribution from the Chromium startup traces. Percentages compare each duration with that IDE's average startup wall time.</p>
+      <p class="callout"><strong>These rows do not add up to 100%.</strong> Trace categories can overlap, run in parallel on separate threads, or sit inside other categories. JavaScript is sampled V8 function time; compile/parse, profiler setup, V8 initialization, rendering, and browser work are recorded separately. CPU profiler startup is measurement overhead from profiled runs and is shown explicitly.</p>
+      <table>
+        <thead><tr><th>Trace category</th>${renderBreakdownHeaders(summary)}<th>What it includes</th></tr></thead>
+        <tbody>${renderDurationBreakdown(summary)}</tbody>
+      </table>
+      <h3 class="subheading">Startup shape</h3>
+      <p class="description">Counts and resource figures are averages per run. “Trace-visible” means Chromium emitted matching resource events; it may omit some worker or cached activity.</p>
+      <table>
+        <thead><tr><th>Signal</th>${renderBreakdownHeaders(summary)}</tr></thead>
+        <tbody>${renderStartupShape(summary)}</tbody>
       </table>
     </section>
   </main>

@@ -26,6 +26,23 @@ export interface StartupBenchmarkMetadata {
   readonly ides: readonly IdeFixture[]
 }
 
+export interface StartupTraceBreakdown {
+  readonly compileParseMs: Stats
+  readonly compiledModuleCount: Stats
+  readonly dedicatedWorkerThreadCount: Stats
+  readonly garbageCollectionMs: Stats
+  readonly largestScriptBytes: Stats
+  readonly largestScriptTransferMs: Stats
+  readonly messageHandlingMs: Stats
+  readonly postDomContentLoadedMs: Stats
+  readonly profilerStartCount: Stats
+  readonly profilerStartupMs: Stats
+  readonly renderMs: Stats
+  readonly requestCount: Stats
+  readonly totalResourceBytes: Stats
+  readonly v8InitializationMs: Stats
+}
+
 export interface StartupIdeSummary {
   readonly domContentLoadedMs: Stats
   readonly failures: number
@@ -34,6 +51,7 @@ export interface StartupIdeSummary {
   readonly javascriptDurationMs: Stats
   readonly label: string
   readonly startupDurationMs: Stats
+  readonly traceBreakdown: StartupTraceBreakdown
   readonly version: string
 }
 

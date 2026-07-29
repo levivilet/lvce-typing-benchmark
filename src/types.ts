@@ -83,13 +83,20 @@ export interface TraceEvent {
         readonly nodes?: readonly CpuProfileNode[]
         readonly samples?: readonly number[]
       }
+      readonly decodedBodyLength?: number
+      readonly encodedDataLength?: number
+      readonly requestId?: number | string
+      readonly resourceType?: string
       readonly timeDeltas?: readonly number[]
     }
   }
+  readonly dur?: number
   readonly id?: string
   readonly name?: string
+  readonly ph?: string
   readonly pid?: number
   readonly tid?: number
+  readonly ts?: number
 }
 
 export interface CpuProfileNode {

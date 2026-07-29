@@ -12,6 +12,7 @@ test('writes the IDE startup report, charts, and recordings', async () => {
   const output = join(temporaryDirectory, 'output')
   await mkdir(join(input, 'videos'), { recursive: true })
   const stats = { mean: 100, min: 80, max: 120, p95: 120 }
+  const countStats = { mean: 2, min: 1, max: 3, p95: 3 }
   const summary: StartupBenchmarkSummary = {
     generatedAt: '2026-07-29T00:00:00.000Z',
     ides: [
@@ -23,6 +24,22 @@ test('writes the IDE startup report, charts, and recordings', async () => {
         javascriptDurationMs: stats,
         label: 'VS Code',
         startupDurationMs: stats,
+        traceBreakdown: {
+          compileParseMs: stats,
+          compiledModuleCount: countStats,
+          dedicatedWorkerThreadCount: countStats,
+          garbageCollectionMs: stats,
+          largestScriptBytes: { mean: 2_000_000, min: 1_000_000, max: 3_000_000, p95: 3_000_000 },
+          largestScriptTransferMs: stats,
+          messageHandlingMs: stats,
+          postDomContentLoadedMs: stats,
+          profilerStartCount: countStats,
+          profilerStartupMs: stats,
+          renderMs: stats,
+          requestCount: countStats,
+          totalResourceBytes: { mean: 4_000_000, min: 3_000_000, max: 5_000_000, p95: 5_000_000 },
+          v8InitializationMs: stats,
+        },
         version: '1.108.2',
       },
     ],
@@ -37,6 +54,12 @@ test('writes the IDE startup report, charts, and recordings', async () => {
   assert.match(html, /GitHub1s/)
   assert.match(html, /Editor typing benchmark/)
   assert.match(html, /src="\.\/videos\/vscode\.webm"/)
+  assert.match(html, /Where startup time goes/)
+  assert.match(html, /Module compile \/ parse/)
+  assert.match(html, /V8 \/ context initialization/)
+  assert.match(html, /do not add up to 100%/)
+  assert.match(html, /measurement overhead/)
+  assert.match(html, /2 MB/)
   assert.match(chart, /VS Code/)
   assert.equal(video, 'test video')
 })

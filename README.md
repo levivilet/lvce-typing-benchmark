@@ -75,8 +75,11 @@ before measurement begins.
 
 Startup is measured from browser navigation until the visible workbench shell
 is present and has painted for two animation frames. Raw results include
-startup wall time, DOMContentLoaded, and sampled JavaScript execution. After
-the measured runs, separate startup recordings are written to
+startup wall time, DOMContentLoaded, sampled JavaScript execution, and trace
+attribution for compilation/parsing, V8 initialization, profiler startup,
+garbage collection, rendering, messaging, workers, and resources. Trace
+categories can overlap or run in parallel and are not additive. After the
+measured runs, separate startup recordings are written to
 `startup-results/videos/`. `npm run report:startup` writes the comparison page
 to `.tmp/pages/ide-startup/`.
 

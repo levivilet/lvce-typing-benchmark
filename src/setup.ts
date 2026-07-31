@@ -5,6 +5,7 @@ import { build } from 'esbuild'
 import { renderDocument } from '../fixtures/renderDocument.ts'
 import { editorLabels } from './editors.ts'
 import { ideLabels } from './ides.ts'
+import { bundleSingleThreadLvce, getSingleThreadLvceBundlePaths } from './lvceSingleThreadBundle.ts'
 import type { EditorFixture, FixtureManifest } from './types.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -94,6 +95,41 @@ const bundleMinimalLvceEditor = async (outputRoot: string): Promise<void> => {
   await writeFile(join(output, 'index.html'), html)
 }
 
+const bundleSingleThreadLvceEditor = async (outputRoot: string): Promise<void> => {
+  const output = join(outputRoot, 'lvce-editor-single-thread')
+  const rendererProcessRoot = join(root, 'node_modules', '@lvce-editor', 'renderer-process', 'dist')
+  const lvceAssetDirectory = await getLvceAssetDirectory()
+  await mkdir(output, { recursive: true })
+  await Promise.all([
+    cp(join(rendererProcessRoot, 'editorOnly.css'), join(output, 'index.css')),
+    bundleSingleThreadLvce(getSingleThreadLvceBundlePaths(root, lvceAssetDirectory, output)),
+  ])
+  const config = {
+    editorOnly: {
+      content: renderDocument,
+      languageId: 'html',
+      tokenizePath: 'embedded:html',
+      uri: 'file:///benchmark.html',
+    },
+  }
+  const serializedConfig = JSON.stringify(config).replaceAll('<', '\\u003c')
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${editorLabels['lvce-editor-single-thread']} typing benchmark</title>
+    <link rel="stylesheet" href="./index.css" />
+    <script id="Config" type="application/json">${serializedConfig}</script>
+  </head>
+  <body>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>
+`
+  await writeFile(join(output, 'index.html'), html)
+}
+
 const bundleVscode = async (outputRoot: string): Promise<void> => {
   const packageRoot = join(root, 'node_modules', '@github1s', 'vscode-web')
   const output = join(outputRoot, 'vscode-ide')
@@ -158,6 +194,7 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
     bundleEditor('monaco-editor', 'monaco', resolvedOutput),
     bundleEditor('codemirror', 'codemirror', resolvedOutput),
     bundleMinimalLvceEditor(resolvedOutput),
+    bundleSingleThreadLvceEditor(resolvedOutput),
     bundleVscode(resolvedOutput),
     cp(join(root, 'node_modules', '@lvce-editor', 'static-server', 'static'), join(resolvedOutput, 'lvce-editor'), { recursive: true }),
   ])
@@ -168,6 +205,13 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
       version: await readPackageVersion('@lvce-editor/renderer-process'),
       kind: 'static',
       path: 'lvce-editor-minimal/',
+    },
+    {
+      id: 'lvce-editor-single-thread',
+      label: editorLabels['lvce-editor-single-thread'],
+      version: await readPackageVersion('@lvce-editor/renderer-process'),
+      kind: 'static',
+      path: 'lvce-editor-single-thread/',
     },
     {
       id: 'monaco-editor',

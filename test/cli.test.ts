@@ -8,7 +8,7 @@ test('uses the full benchmark defaults', () => {
   assert.equal(options.iterations, 20)
   assert.equal(options.warmups, 1)
   assert.equal(options.profile, true)
-  assert.deepEqual(options.editors, ['lvce-editor-minimal', 'monaco-editor', 'codemirror'])
+  assert.deepEqual(options.editors, ['lvce-editor-minimal', 'lvce-editor-single-thread', 'monaco-editor', 'codemirror'])
 })
 
 test('parses benchmark overrides', () => {

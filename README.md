@@ -1,8 +1,9 @@
 # LVCE Typing Benchmark
 
-Measure editor typing and syntax-highlight rendering in LVCE Editor Only,
-Monaco Editor, and CodeMirror, plus browser-side IDE startup in the full LVCE
-Editor and VS Code, under repeatable Chromium/Playwright workloads.
+Measure editor typing and syntax-highlight rendering in LVCE Editor Only, its
+single-thread variant, Monaco Editor, and CodeMirror, plus browser-side IDE
+startup in the full LVCE Editor and VS Code, under repeatable
+Chromium/Playwright workloads.
 
 ## Run locally
 
@@ -25,6 +26,13 @@ a minimal renderer process, the editor worker, and the syntax-highlighting
 worker. The renderer process communicates directly with both workers; there is
 no renderer worker or workbench chrome.
 
+The LVCE Editor Single Thread fixture is generated from the same pinned
+published LVCE packages. Its benchmark-side static-export transform embeds the
+renderer process, editor worker, syntax-highlighting worker, and HTML tokenizer
+in one JavaScript file. Worker launch and message/RPC dispatch are replaced by
+in-process command-map function calls, so the fixture creates no web workers
+and performs no cross-thread serialization.
+
 The IDE startup fixtures are separate. LVCE's published assets are copied from
 `@lvce-editor/static-server` and served by `@lvce-editor/server`. VS Code 1.108.2
 comes from the pinned `@github1s/vscode-web` static export used by GitHub1s and
@@ -32,7 +40,7 @@ is served entirely from local generated assets. The VS Code package is roughly
 107 MB unpacked but is not committed to this repository.
 
 The default typing benchmark performs one warmup and 20 measured iterations for
-LVCE Editor Only, Monaco, and CodeMirror. Each measured iteration:
+both LVCE variants, Monaco, and CodeMirror. Each measured iteration:
 
 1. opens a fresh browser context at 1280×720,
 2. focuses an empty plain-text editor,
@@ -51,7 +59,7 @@ execution-context shares, bundled source locations, and samples per run.
 ## Syntax highlight rendering benchmark
 
 `npm run benchmark:render` runs one warmup and 20 measured iterations for the
-same three editor-only fixtures. Every iteration launches a fresh Chromium
+same four editor-only fixtures. Every iteration launches a fresh Chromium
 instance at 1280×720 and opens the same roughly 30-line Hello World HTML
 document with HTML syntax highlighting enabled. The measurement ends after
 highlighted tokens are in the DOM and two animation frames have completed.
@@ -100,6 +108,6 @@ npm run report:startup -- --input startup-results --output .tmp/pages/ide-startu
 
 Pull requests run lint, tests, type checking, fixture generation, and one
 profiled smoke iteration for typing, rendering, and IDE startup. Pushes to
-`main` run 20 profiled iterations for all three benchmarks, upload the raw
+`main` run 20 profiled iterations for all three benchmark types, upload the raw
 results, profiles, and load recordings as an artifact, and deploy separate
 editor, rendering, and IDE startup reports to GitHub Pages.

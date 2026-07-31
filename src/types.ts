@@ -1,4 +1,4 @@
-export type EditorId = 'lvce-editor-minimal' | 'monaco-editor' | 'codemirror'
+export type EditorId = 'lvce-editor-minimal' | 'lvce-editor-single-thread' | 'monaco-editor' | 'codemirror'
 
 export type IdeId = 'lvce-editor' | 'vscode'
 

@@ -1,6 +1,6 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { build } from 'esbuild'
+import { bundleJavaScriptSource, generateIife } from './rollupBundle.ts'
 
 const replaceExactlyOnce = (source: string, search: string, replacement: string, label: string): string => {
   const firstIndex = source.indexOf(search)
@@ -133,25 +133,6 @@ const createRendererBundle = (source: string): string => {
   return `(() => {\n${directLaunch}\n})();\n`
 }
 
-const bundleHtmlTokenizer = async (entryPoint: string): Promise<string> => {
-  const result = await build({
-    bundle: true,
-    entryPoints: [entryPoint],
-    format: 'iife',
-    globalName: '__lvceHtmlTokenizer',
-    legalComments: 'none',
-    minify: true,
-    platform: 'browser',
-    target: ['chrome120'],
-    write: false,
-  })
-  const output = result.outputFiles[0]
-  if (!output) {
-    throw new Error('HTML tokenizer build produced no JavaScript')
-  }
-  return output.text
-}
-
 export interface SingleThreadLvceBundleOptions {
   readonly editorWorkerPath: string
   readonly htmlTokenizerPath: string
@@ -161,12 +142,10 @@ export interface SingleThreadLvceBundleOptions {
 }
 
 export const bundleSingleThreadLvce = async (options: SingleThreadLvceBundleOptions): Promise<void> => {
-  const [editorSource, rendererSource, syntaxSource, tokenizerSource] = await Promise.all([
-    readFile(options.editorWorkerPath, 'utf8'),
-    readFile(options.rendererProcessPath, 'utf8'),
-    readFile(options.syntaxHighlightingWorkerPath, 'utf8'),
-    bundleHtmlTokenizer(options.htmlTokenizerPath),
-  ])
+  const editorSource = await readFile(options.editorWorkerPath, 'utf8')
+  const rendererSource = await readFile(options.rendererProcessPath, 'utf8')
+  const syntaxSource = await readFile(options.syntaxHighlightingWorkerPath, 'utf8')
+  const tokenizerSource = await generateIife(options.htmlTokenizerPath, '__lvceHtmlTokenizer')
   const bundle = [
     directRpcSource,
     tokenizerSource,
@@ -174,7 +153,7 @@ export const bundleSingleThreadLvce = async (options: SingleThreadLvceBundleOpti
     createEditorBundle(editorSource),
     createRendererBundle(rendererSource),
   ].join('\n')
-  await writeFile(options.outputPath, bundle)
+  await bundleJavaScriptSource(bundle, options.outputPath)
 }
 
 export const getSingleThreadLvceBundlePaths = (root: string, lvceAssetDirectory: string, output: string): SingleThreadLvceBundleOptions => ({

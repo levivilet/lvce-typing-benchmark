@@ -20,14 +20,15 @@ npm run benchmark:startup
 npm run report:startup
 ```
 
-`npm run setup` generates `.tmp/static/` with pinned fixtures. Monaco and
-CodeMirror are bundled with esbuild. The editor-only LVCE fixture contains only
-a minimal renderer process, the editor worker, and the syntax-highlighting
-worker. The renderer process communicates directly with both workers; there is
-no renderer worker or workbench chrome.
+`npm run setup` generates `.tmp/static/` with pinned fixtures. All fixture work
+runs sequentially. Monaco and CodeMirror are bundled with Rollup, and every
+generated JavaScript artifact is minified with Rollup's Terser plugin. The
+editor-only LVCE fixture contains only a minimal renderer process, the editor
+worker, and the syntax-highlighting worker. The renderer process communicates
+directly with both workers; there is no renderer worker or workbench chrome.
 
 The LVCE Editor Single Thread fixture is generated from the same pinned
-published LVCE packages. Its benchmark-side static-export transform embeds the
+published LVCE packages. Its benchmark-side Rollup transform embeds the
 renderer process, editor worker, syntax-highlighting worker, and HTML tokenizer
 in one JavaScript file. Worker launch and message/RPC dispatch are replaced by
 in-process command-map function calls, so the fixture creates no web workers

@@ -37,10 +37,13 @@
   },
   "devDependencies": {
     "@lvce-editor/eslint-config": "^17.5.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
     "@types/node": "^24.10.1",
-    "esbuild": "^0.28.1",
     "eslint": "^10.7.0",
     "playwright": "^1.57.0",
+    "rollup": "^4.62.3",
+    "rollup-plugin-css-only": "^4.5.5",
     "typescript": "^5.9.3"
   }
 }

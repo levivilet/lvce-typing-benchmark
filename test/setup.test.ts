@@ -4,6 +4,11 @@ import { join, resolve } from 'node:path'
 import test from 'node:test'
 import { setupFixtures } from '../src/setup.ts'
 
+const assertMinified = async (path: string): Promise<void> => {
+  const source = await readFile(path, 'utf8')
+  assert.equal(source.trim().split('\n').length, 1, `${path} should contain one minified line`)
+}
+
 test('generates separate editor and IDE fixtures', async () => {
   const output = resolve('.tmp', 'setup-test-static')
   try {
@@ -61,8 +66,15 @@ test('generates separate editor and IDE fixtures', async () => {
     assert.doesNotMatch(singleThreadHtml, /WorkerUrl/)
     const singleThreadBundle = await readFile(join(output, 'lvce-editor-single-thread', 'index.js'), 'utf8')
     assert.match(singleThreadBundle, /Direct LVCE command not found/)
-    assert.match(singleThreadBundle, /__lvceEditorWorker\.configureRenderer\(commandMapRef\)/)
-    assert.match(singleThreadBundle, /tokenizePath === 'embedded:html'/)
+    assert.match(singleThreadBundle, /embedded:html/)
+
+    await assertMinified(join(output, 'codemirror', 'index.js'))
+    await assertMinified(join(output, 'monaco-editor', 'index.js'))
+    await assertMinified(join(output, 'lvce-editor-minimal', 'index.js'))
+    await assertMinified(join(output, 'lvce-editor-minimal', 'editorWorkerMain.js'))
+    await assertMinified(join(output, 'lvce-editor-minimal', 'syntaxHighlightingWorkerMain.js'))
+    await assertMinified(join(output, 'lvce-editor-minimal', 'tokenizeHtml.js'))
+    await assertMinified(join(output, 'lvce-editor-single-thread', 'index.js'))
 
     const vscodeFixture = manifest.ides.find((ide) => ide.id === 'vscode')
     assert.deepEqual(vscodeFixture, {
@@ -87,4 +99,11 @@ test('generates separate editor and IDE fixtures', async () => {
   } finally {
     await rm(output, { force: true, recursive: true })
   }
+})
+
+test('bundles fixtures sequentially', async () => {
+  const setupSource = await readFile(resolve('src', 'setup.ts'), 'utf8')
+  const singleThreadSource = await readFile(resolve('src', 'lvceSingleThreadBundle.ts'), 'utf8')
+  assert.doesNotMatch(setupSource, /Promise\.all/)
+  assert.doesNotMatch(singleThreadSource, /Promise\.all/)
 })

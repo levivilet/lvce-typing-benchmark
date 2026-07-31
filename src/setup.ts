@@ -1,11 +1,11 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { build } from 'esbuild'
 import { renderDocument } from '../fixtures/renderDocument.ts'
 import { editorLabels } from './editors.ts'
 import { ideLabels } from './ides.ts'
 import { bundleSingleThreadLvce, getSingleThreadLvceBundlePaths } from './lvceSingleThreadBundle.ts'
+import { bundleBrowserFixture, bundleJavaScriptFile } from './rollupBundle.ts'
 import type { EditorFixture, FixtureManifest } from './types.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -54,19 +54,17 @@ const bundleMinimalLvceEditor = async (outputRoot: string): Promise<void> => {
   const syntaxHighlightingWorkerRoot = join(root, 'node_modules', '@lvce-editor', 'syntax-highlighting-worker', 'dist')
   const lvceAssetDirectory = await getLvceAssetDirectory()
   await mkdir(output, { recursive: true })
-  await Promise.all([
-    cp(join(rendererProcessRoot, 'editorOnly.css'), join(output, 'index.css')),
-    cp(join(rendererProcessRoot, 'editorOnlyRendererProcessMain.js'), join(output, 'index.js')),
-    cp(join(editorWorkerRoot, 'editorWorkerMain.js'), join(output, 'editorWorkerMain.js')),
-    cp(
-      join(syntaxHighlightingWorkerRoot, 'syntaxHighlightingWorkerMain.js'),
-      join(output, 'syntaxHighlightingWorkerMain.js'),
-    ),
-    cp(
-      join(lvceAssetDirectory, 'extensions', 'builtin.language-basics-html', 'src', 'tokenizeHtml.js'),
-      join(output, 'tokenizeHtml.js'),
-    ),
-  ])
+  await cp(join(rendererProcessRoot, 'editorOnly.css'), join(output, 'index.css'))
+  await bundleJavaScriptFile(join(rendererProcessRoot, 'editorOnlyRendererProcessMain.js'), join(output, 'index.js'))
+  await bundleJavaScriptFile(join(editorWorkerRoot, 'editorWorkerMain.js'), join(output, 'editorWorkerMain.js'))
+  await bundleJavaScriptFile(
+    join(syntaxHighlightingWorkerRoot, 'syntaxHighlightingWorkerMain.js'),
+    join(output, 'syntaxHighlightingWorkerMain.js'),
+  )
+  await bundleJavaScriptFile(
+    join(lvceAssetDirectory, 'extensions', 'builtin.language-basics-html', 'src', 'tokenizeHtml.js'),
+    join(output, 'tokenizeHtml.js'),
+  )
   const config = {
     editorOnly: {
       content: renderDocument,
@@ -100,10 +98,8 @@ const bundleSingleThreadLvceEditor = async (outputRoot: string): Promise<void> =
   const rendererProcessRoot = join(root, 'node_modules', '@lvce-editor', 'renderer-process', 'dist')
   const lvceAssetDirectory = await getLvceAssetDirectory()
   await mkdir(output, { recursive: true })
-  await Promise.all([
-    cp(join(rendererProcessRoot, 'editorOnly.css'), join(output, 'index.css')),
-    bundleSingleThreadLvce(getSingleThreadLvceBundlePaths(root, lvceAssetDirectory, output)),
-  ])
+  await cp(join(rendererProcessRoot, 'editorOnly.css'), join(output, 'index.css'))
+  await bundleSingleThreadLvce(getSingleThreadLvceBundlePaths(root, lvceAssetDirectory, output))
   const config = {
     editorOnly: {
       content: renderDocument,
@@ -134,12 +130,10 @@ const bundleVscode = async (outputRoot: string): Promise<void> => {
   const packageRoot = join(root, 'node_modules', '@github1s', 'vscode-web')
   const output = join(outputRoot, 'vscode-ide')
   await mkdir(output, { recursive: true })
-  await Promise.all([
-    cp(join(packageRoot, 'dependencies'), join(outputRoot, 'dependencies'), { recursive: true }),
-    cp(join(packageRoot, 'extensions'), join(outputRoot, 'extensions'), { recursive: true }),
-    cp(join(packageRoot, 'nls'), join(outputRoot, 'nls'), { recursive: true }),
-    cp(join(packageRoot, 'vscode'), join(outputRoot, 'vscode'), { recursive: true }),
-  ])
+  await cp(join(packageRoot, 'dependencies'), join(outputRoot, 'dependencies'), { recursive: true })
+  await cp(join(packageRoot, 'extensions'), join(outputRoot, 'extensions'), { recursive: true })
+  await cp(join(packageRoot, 'nls'), join(outputRoot, 'nls'), { recursive: true })
+  await cp(join(packageRoot, 'vscode'), join(outputRoot, 'vscode'), { recursive: true })
   const html = `<!doctype html>
 <html lang="en">
   <head>
@@ -171,16 +165,7 @@ const bundleVscode = async (outputRoot: string): Promise<void> => {
 const bundleEditor = async (id: 'monaco-editor' | 'codemirror', sourceDirectory: 'monaco' | 'codemirror', outputRoot: string): Promise<void> => {
   const output = join(outputRoot, id)
   await mkdir(output, { recursive: true })
-  await build({
-    bundle: true,
-    entryPoints: [join(root, 'fixtures', sourceDirectory, 'index.ts')],
-    format: 'esm',
-    legalComments: 'none',
-    minify: true,
-    outfile: join(output, 'index.js'),
-    platform: 'browser',
-    target: ['chrome120'],
-  })
+  await bundleBrowserFixture(join(root, 'fixtures', sourceDirectory, 'index.ts'), join(output, 'index.js'))
   await writeHtml(output, editorLabels[id])
 }
 
@@ -190,14 +175,14 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
   await rm(resolvedOutput, { force: true, recursive: true })
   await mkdir(resolvedOutput, { recursive: true })
 
-  await Promise.all([
-    bundleEditor('monaco-editor', 'monaco', resolvedOutput),
-    bundleEditor('codemirror', 'codemirror', resolvedOutput),
-    bundleMinimalLvceEditor(resolvedOutput),
-    bundleSingleThreadLvceEditor(resolvedOutput),
-    bundleVscode(resolvedOutput),
-    cp(join(root, 'node_modules', '@lvce-editor', 'static-server', 'static'), join(resolvedOutput, 'lvce-editor'), { recursive: true }),
-  ])
+  await bundleEditor('monaco-editor', 'monaco', resolvedOutput)
+  await bundleEditor('codemirror', 'codemirror', resolvedOutput)
+  await bundleMinimalLvceEditor(resolvedOutput)
+  await bundleSingleThreadLvceEditor(resolvedOutput)
+  await bundleVscode(resolvedOutput)
+  await cp(join(root, 'node_modules', '@lvce-editor', 'static-server', 'static'), join(resolvedOutput, 'lvce-editor'), {
+    recursive: true,
+  })
   const editors: readonly EditorFixture[] = [
     {
       id: 'lvce-editor-minimal',

@@ -42,6 +42,28 @@ test('generates separate editor and IDE fixtures', async () => {
     assert.match(html, /"syntaxHighlightingWorkerUrl":"\.\/syntaxHighlightingWorkerMain\.js"/)
     assert.doesNotMatch(html, /rendererWorkerUrl/)
 
+    const singleThreadFixture = manifest.editors.find((editor) => editor.id === 'lvce-editor-single-thread')
+    assert.deepEqual(singleThreadFixture, {
+      id: 'lvce-editor-single-thread',
+      kind: 'static',
+      label: 'LVCE Editor Single Thread',
+      path: 'lvce-editor-single-thread/',
+      version: rendererPackage.version,
+    })
+    const singleThreadFiles = await readdir(join(output, 'lvce-editor-single-thread'))
+    assert.deepEqual(singleThreadFiles.toSorted((left, right) => left.localeCompare(right)), [
+      'index.css',
+      'index.html',
+      'index.js',
+    ])
+    const singleThreadHtml = await readFile(join(output, 'lvce-editor-single-thread', 'index.html'), 'utf8')
+    assert.match(singleThreadHtml, /"tokenizePath":"embedded:html"/)
+    assert.doesNotMatch(singleThreadHtml, /WorkerUrl/)
+    const singleThreadBundle = await readFile(join(output, 'lvce-editor-single-thread', 'index.js'), 'utf8')
+    assert.match(singleThreadBundle, /Direct LVCE command not found/)
+    assert.match(singleThreadBundle, /__lvceEditorWorker\.configureRenderer\(commandMapRef\)/)
+    assert.match(singleThreadBundle, /tokenizePath === 'embedded:html'/)
+
     const vscodeFixture = manifest.ides.find((ide) => ide.id === 'vscode')
     assert.deepEqual(vscodeFixture, {
       id: 'vscode',
@@ -50,6 +72,10 @@ test('generates separate editor and IDE fixtures', async () => {
       path: 'vscode-ide/',
       version: '1.108.2',
     })
+    assert.deepEqual(
+      manifest.editors.map((editor) => editor.id),
+      ['lvce-editor-minimal', 'lvce-editor-single-thread', 'monaco-editor', 'codemirror'],
+    )
     assert.deepEqual(
       manifest.ides.map((ide) => ide.id),
       ['lvce-editor', 'vscode'],

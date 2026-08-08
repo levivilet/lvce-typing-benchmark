@@ -36,6 +36,9 @@ test('profiles layers that Chromium accepts and skips contradictory non-drawing 
         if (parameters?.layerId === 'rejected') {
           throw new Error('Protocol error (LayerTree.makeSnapshot): Layer does not draw content')
         }
+        if (parameters?.layerId === 'pictureless') {
+          throw new Error('Protocol error (LayerTree.makeSnapshot): Layer does not produce picture')
+        }
         return { snapshotId: 'snapshot-1' }
       }
       if (method === 'LayerTree.snapshotCommandLog') {
@@ -47,6 +50,7 @@ test('profiles layers that Chromium accepts and skips contradictory non-drawing 
   assert.equal(
     await getPaintCommandCount(cdp, [
       { layerId: 'rejected', drawsContent: true },
+      { layerId: 'pictureless', drawsContent: true },
       { layerId: 'profiled', drawsContent: true },
     ]),
     3,

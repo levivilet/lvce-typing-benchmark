@@ -87,7 +87,7 @@ export const getPaintCommandCount = async (
       profiledLayerCount++
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (message.includes('Layer does not draw content')) {
+      if (message.includes('Layer does not draw content') || message.includes('Layer does not produce picture')) {
         continue
       }
       console.info(`Paint Profiler snapshot unavailable for layer ${layer.layerId}: ${message}`)

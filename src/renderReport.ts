@@ -61,7 +61,7 @@ const charts: readonly ChartDefinition[] = [
     unit: 'area',
   },
   {
-    description: 'Display-list commands in DevTools Paint Profiler snapshots of the final content-bearing layers.',
+    description: 'Display-list commands in available DevTools Paint Profiler snapshots of final content-bearing layers.',
     fileName: 'paint-commands.svg',
     getStats: (summary) => summary.paintCommandCount,
     title: 'Paint commands',
@@ -317,7 +317,7 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
       .join('\n')}
     <section class="card">
       <h2>Painting details</h2>
-      <p class="description">Paint events, main-thread paint time, and cumulative clip area come from the Chromium trace after the benchmark navigation commits and until the highlighted document is ready. Areas may overlap, so they are work estimates rather than unique screen coverage. Paint commands come from DevTools Paint Profiler snapshots captured after the timed load and memory sample. Layer metrics describe the final composited layer tree.</p>
+      <p class="description">Paint events, main-thread paint time, and cumulative clip area come from the Chromium trace after the benchmark navigation commits and until the highlighted document is ready. Areas may overlap, so they are work estimates rather than unique screen coverage. Paint commands come from available DevTools Paint Profiler snapshots captured after the timed load and memory sample; Chromium may reject a layer it previously marked as content-bearing when that layer has no paint record. Layer metrics describe the final composited layer tree.</p>
       <table>
         <thead><tr><th>Editor</th><th>Paint events</th><th>Paint time</th><th>Painted area</th><th>Largest paint</th><th>Paint commands</th><th>Layers</th><th>Content layers</th></tr></thead>
         <tbody>${renderPaintRows(summary)}</tbody>

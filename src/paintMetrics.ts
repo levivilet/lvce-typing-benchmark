@@ -1,4 +1,5 @@
 import type { CDPSession } from 'playwright'
+import type { PaintCommandCount } from './renderTypes.ts'
 
 interface CompositedLayer {
   readonly drawsContent: boolean
@@ -9,17 +10,19 @@ export interface LayerMetrics {
   readonly contentLayerCount: number | null
   readonly layerCount: number | null
   readonly paintCommandCount: number | null
+  readonly paintCommands: readonly PaintCommandCount[] | null
 }
 
 export const computeLayerMetrics = (
   layers: readonly CompositedLayer[] | undefined,
-  paintCommandCount: number | null,
+  paintCommands: readonly PaintCommandCount[] | null,
 ): LayerMetrics => {
   const contentLayers = layers?.filter((layer) => layer.drawsContent)
   return {
     contentLayerCount: contentLayers?.length ?? null,
     layerCount: layers?.length ?? null,
-    paintCommandCount,
+    paintCommandCount: paintCommands?.reduce((total, command) => total + command.count, 0) ?? null,
+    paintCommands,
   }
 }
 
@@ -65,16 +68,16 @@ export class LayerMetricsCollector {
     await this.enableForDocument()
     await this.navigationSetup
     const { layers } = this
-    const paintCommandCount = layers ? await getPaintCommandCount(this.cdp, layers) : null
-    return computeLayerMetrics(layers, paintCommandCount)
+    const paintCommands = layers ? await getPaintCommands(this.cdp, layers) : null
+    return computeLayerMetrics(layers, paintCommands)
   }
 }
 
-export const getPaintCommandCount = async (
+export const getPaintCommands = async (
   cdp: CDPSession,
   layers: readonly CompositedLayer[],
-): Promise<number | null> => {
-  let paintCommandCount = 0
+): Promise<readonly PaintCommandCount[] | null> => {
+  const commandCounts = new Map<string, number>()
   let profiledLayerCount = 0
   const contentLayers = layers.filter((layer) => layer.drawsContent)
   for (const layer of contentLayers) {
@@ -83,7 +86,10 @@ export const getPaintCommandCount = async (
       const { snapshotId: createdSnapshotId } = await cdp.send('LayerTree.makeSnapshot', { layerId: layer.layerId })
       snapshotId = createdSnapshotId
       const { commandLog } = await cdp.send('LayerTree.snapshotCommandLog', { snapshotId })
-      paintCommandCount += commandLog.length
+      for (const command of commandLog) {
+        const method = command.method || 'unknown'
+        commandCounts.set(method, (commandCounts.get(method) || 0) + 1)
+      }
       profiledLayerCount++
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -98,5 +104,10 @@ export const getPaintCommandCount = async (
       }
     }
   }
-  return profiledLayerCount === 0 ? null : paintCommandCount
+  if (profiledLayerCount === 0) {
+    return null
+  }
+  return Array.from(commandCounts, ([method, count]) => ({ count, method })).toSorted(
+    (a, b) => b.count - a.count || a.method.localeCompare(b.method),
+  )
 }

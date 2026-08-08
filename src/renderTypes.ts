@@ -1,5 +1,15 @@
 import type { EditorFixture, EditorId, Stats } from './types.ts'
 
+export interface PaintCommandCount {
+  readonly count: number
+  readonly method: string
+}
+
+export interface PaintCommandSummary {
+  readonly count: Stats
+  readonly method: string
+}
+
 export interface RenderBenchmarkOptions {
   readonly editors: readonly EditorId[]
   readonly headed: boolean
@@ -22,6 +32,7 @@ export interface RenderIterationResult {
   readonly largestPaintAreaPixels: number | null
   readonly layerCount: number | null
   readonly paintCommandCount: number | null
+  readonly paintCommands: readonly PaintCommandCount[] | null
   readonly paintDurationMs: number | null
   readonly paintedAreaPixels: number | null
   readonly paintEventCount: number | null
@@ -50,6 +61,7 @@ export interface RenderEditorSummary {
   readonly largestPaintAreaPixels: Stats
   readonly layerCount: Stats
   readonly paintCommandCount: Stats
+  readonly paintCommands: readonly PaintCommandSummary[]
   readonly paintDurationMs: Stats
   readonly paintedAreaPixels: Stats
   readonly paintEventCount: Stats

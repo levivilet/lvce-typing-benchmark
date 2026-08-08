@@ -8,7 +8,19 @@ import type {
   RenderBenchmarkMetadata,
   RenderBenchmarkSummary,
   RenderIterationResult,
+  PaintCommandSummary,
 } from './renderTypes.ts'
+
+const summarizePaintCommands = (results: readonly RenderIterationResult[]): readonly PaintCommandSummary[] => {
+  const iterations = results.flatMap((result) => (result.paintCommands ? [result.paintCommands] : []))
+  const methods = new Set(iterations.flatMap((commands) => commands.map((command) => command.method)))
+  return Array.from(methods, (method) => ({
+      count: computeStats(
+        iterations.map((commands) => commands.find((command) => command.method === method)?.count ?? 0),
+      ),
+      method,
+    })).toSorted((a, b) => (b.count.mean ?? 0) - (a.count.mean ?? 0) || a.method.localeCompare(b.method))
+}
 
 export const analyzeRenderResults = async (input: string): Promise<RenderBenchmarkSummary> => {
   const metadata = JSON.parse(await readFile(join(input, 'benchmark.json'), 'utf8')) as RenderBenchmarkMetadata
@@ -47,6 +59,7 @@ export const analyzeRenderResults = async (input: string): Promise<RenderBenchma
         paintCommandCount: computeStats(
           successfulResults.flatMap((result) => (result.paintCommandCount === null ? [] : [result.paintCommandCount])),
         ),
+        paintCommands: summarizePaintCommands(successfulResults),
         paintDurationMs: computeStats(
           successfulResults.flatMap((result) => (result.paintDurationMs === null ? [] : [result.paintDurationMs])),
         ),

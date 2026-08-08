@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { CDPSession } from 'playwright'
-import { computeLayerMetrics, getPaintCommandCount } from '../src/paintMetrics.ts'
+import { computeLayerMetrics, getPaintCommands } from '../src/paintMetrics.ts'
 
 test('summarizes the final layer tree', () => {
   assert.deepEqual(
@@ -11,12 +11,19 @@ test('summarizes the final layer tree', () => {
         { layerId: 'content-1', drawsContent: true },
         { layerId: 'content-2', drawsContent: true },
       ],
-      17,
+      [
+        { method: 'drawTextBlob', count: 15 },
+        { method: 'drawRect', count: 2 },
+      ],
     ),
     {
       contentLayerCount: 2,
       layerCount: 3,
       paintCommandCount: 17,
+      paintCommands: [
+        { method: 'drawTextBlob', count: 15 },
+        { method: 'drawRect', count: 2 },
+      ],
     },
   )
 })
@@ -26,6 +33,7 @@ test('reports missing layer information', () => {
     contentLayerCount: null,
     layerCount: null,
     paintCommandCount: null,
+    paintCommands: null,
   })
 })
 
@@ -42,17 +50,26 @@ test('profiles layers that Chromium accepts and skips contradictory non-drawing 
         return { snapshotId: 'snapshot-1' }
       }
       if (method === 'LayerTree.snapshotCommandLog') {
-        return { commandLog: [{}, {}, {}] }
+        return {
+          commandLog: [
+            { method: 'drawTextBlob' },
+            { method: 'drawRect' },
+            { method: 'drawTextBlob' },
+          ],
+        }
       }
       return {}
     },
   } as unknown as CDPSession
-  assert.equal(
-    await getPaintCommandCount(cdp, [
+  assert.deepEqual(
+    await getPaintCommands(cdp, [
       { layerId: 'rejected', drawsContent: true },
       { layerId: 'pictureless', drawsContent: true },
       { layerId: 'profiled', drawsContent: true },
     ]),
-    3,
+    [
+      { method: 'drawTextBlob', count: 2 },
+      { method: 'drawRect', count: 1 },
+    ],
   )
 })

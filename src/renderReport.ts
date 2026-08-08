@@ -254,6 +254,31 @@ const renderPaintRows = (summary: RenderBenchmarkSummary): string => {
     .join('\n')
 }
 
+const renderPaintCommandBreakdown = (summary: RenderBenchmarkSummary): string => {
+  return summary.editors
+    .map((editor) => {
+      const rows = editor.paintCommands
+        .map(
+          (command) => `<tr>
+  <th scope="row"><code>${escapeHtml(command.method)}</code></th>
+  <td>${formatValue(command.count.mean, 'count')}</td>
+  <td>${formatValue(command.count.min, 'count')}</td>
+  <td>${formatValue(command.count.max, 'count')}</td>
+</tr>`,
+        )
+        .join('\n')
+      return `<article class="paint-command-card">
+        <h3>${escapeHtml(editor.label)} <span>v${escapeHtml(editor.version)}</span></h3>
+        <p>${formatValue(editor.paintCommandCount.mean, 'count')} commands per load · ${editor.paintCommands.length} command types</p>
+        <table>
+          <thead><tr><th>Command method</th><th>Average</th><th>Minimum</th><th>Maximum</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </article>`
+    })
+    .join('\n')
+}
+
 const renderLoadVideos = (summary: RenderBenchmarkSummary): string => {
   return summary.editors
     .map(
@@ -293,6 +318,11 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
     thead th { color: #475569; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
     tbody th span { color: #64748b; font-weight: 400; }
     code { padding: 2px 6px; border-radius: 5px; background: #eef2f7; }
+    .paint-command-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); gap: 16px; margin-top: 24px; }
+    .paint-command-card { min-width: 0; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; }
+    .paint-command-card h3 span { color: #64748b; font-size: 1rem; font-weight: 400; }
+    .paint-command-card p { color: #64748b; }
+    .paint-command-card table { min-width: 0; }
   </style>
 </head>
 <body>
@@ -322,6 +352,9 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
         <thead><tr><th>Editor</th><th>Paint events</th><th>Paint time</th><th>Painted area</th><th>Largest paint</th><th>Paint commands</th><th>Layers</th><th>Content layers</th></tr></thead>
         <tbody>${renderPaintRows(summary)}</tbody>
       </table>
+      <h3 class="paint-command-heading">Paint command breakdown</h3>
+      <p class="description">These are the exact canvas command method names returned by Chromium's Paint Profiler. Counts include all available final content-layer snapshots in a fresh load and are summarized across measured runs.</p>
+      <div class="paint-command-grid">${renderPaintCommandBreakdown(summary)}</div>
     </section>
     <section class="card">
       <h2>Results</h2>

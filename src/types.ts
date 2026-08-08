@@ -84,7 +84,10 @@ export interface TraceEvent {
         readonly samples?: readonly number[]
       }
       readonly decodedBodyLength?: number
+      readonly clip?: readonly number[]
       readonly encodedDataLength?: number
+      readonly frame?: string
+      readonly isMainFrame?: boolean
       readonly requestId?: number | string
       readonly resourceType?: string
       readonly timeDeltas?: readonly number[]

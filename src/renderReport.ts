@@ -14,7 +14,7 @@ interface ChartDefinition {
   readonly fileName: string
   readonly getStats: (summary: RenderEditorSummary) => Stats
   readonly title: string
-  readonly unit: 'bytes' | 'ms'
+  readonly unit: 'area' | 'bytes' | 'count' | 'ms'
 }
 
 const charts: readonly ChartDefinition[] = [
@@ -31,6 +31,48 @@ const charts: readonly ChartDefinition[] = [
     getStats: (summary) => summary.renderDurationMs,
     title: 'Syntax-highlighted text rendered',
     unit: 'ms',
+  },
+  {
+    description: 'Number of main-frame Chromium Paint trace events after navigation committed.',
+    fileName: 'paint-events.svg',
+    getStats: (summary) => summary.paintEventCount,
+    title: 'Paint events',
+    unit: 'count',
+  },
+  {
+    description: 'Total main-thread time in Chromium Paint trace events after navigation committed.',
+    fileName: 'paint-duration.svg',
+    getStats: (summary) => summary.paintDurationMs,
+    title: 'Paint time',
+    unit: 'ms',
+  },
+  {
+    description: 'Sum of all Paint trace clip areas. Overlapping and repainted pixels count once per paint event.',
+    fileName: 'painted-area.svg',
+    getStats: (summary) => summary.paintedAreaPixels,
+    title: 'Cumulative painted area',
+    unit: 'area',
+  },
+  {
+    description: 'Area of the largest single paint damage rectangle observed during the load.',
+    fileName: 'largest-paint.svg',
+    getStats: (summary) => summary.largestPaintAreaPixels,
+    title: 'Largest paint rectangle',
+    unit: 'area',
+  },
+  {
+    description: 'Display-list commands in DevTools Paint Profiler snapshots of the final content-bearing layers.',
+    fileName: 'paint-commands.svg',
+    getStats: (summary) => summary.paintCommandCount,
+    title: 'Paint commands',
+    unit: 'count',
+  },
+  {
+    description: 'Composited layers in Chromium\'s final layer tree after syntax highlighting is ready.',
+    fileName: 'composited-layers.svg',
+    getStats: (summary) => summary.layerCount,
+    title: 'Composited layers',
+    unit: 'count',
   },
   {
     description: 'Resident memory used by Chromium renderer processes after the highlighted document is painted.',
@@ -82,14 +124,31 @@ const formatBytes = (value: number | null): string => {
   return `${formatNumber(scaled, scaled >= 10 ? 1 : 2)} ${units[unitIndex]}`
 }
 
+const formatArea = (value: number | null): string => {
+  if (value === null) {
+    return 'n/a'
+  }
+  const units = ['px²', 'Kpx²', 'Mpx²', 'Gpx²']
+  let scaled = value
+  let unitIndex = 0
+  while (scaled >= 1_000 && unitIndex < units.length - 1) {
+    scaled /= 1_000
+    unitIndex++
+  }
+  return `${formatNumber(scaled, scaled >= 10 ? 1 : 2)} ${units[unitIndex]}`
+}
+
 const formatValue = (value: number | null, unit: ChartDefinition['unit']): string => {
+  if (unit === 'area') {
+    return formatArea(value)
+  }
   if (unit === 'bytes') {
     return formatBytes(value)
   }
   if (value === null) {
     return 'n/a'
   }
-  return `${formatNumber(value)} ms`
+  return unit === 'ms' ? `${formatNumber(value)} ms` : formatNumber(value)
 }
 
 const renderChart = (summary: RenderBenchmarkSummary, chart: ChartDefinition): string => {
@@ -178,6 +237,24 @@ const renderRows = (summary: RenderBenchmarkSummary): string => {
     .join('\n')
 }
 
+const renderPaintRows = (summary: RenderBenchmarkSummary): string => {
+  return summary.editors
+    .map(
+      (editor) => `<tr>
+  <th scope="row">${escapeHtml(editor.label)} <span>v${escapeHtml(editor.version)}</span></th>
+  <td>${formatValue(editor.paintEventCount.mean, 'count')}</td>
+  <td>${formatValue(editor.paintDurationMs.mean, 'ms')}</td>
+  <td>${formatValue(editor.paintedAreaPixels.mean, 'area')}</td>
+  <td>${formatValue(editor.largestPaintAreaPixels.mean, 'area')}</td>
+  <td>${formatValue(editor.paintCommandCount.mean, 'count')}</td>
+  <td>${formatValue(editor.layerCount.mean, 'count')}</td>
+  <td>${formatValue(editor.contentLayerCount.mean, 'count')}</td>
+  <td>${formatValue(editor.contentLayerAreaPixels.mean, 'area')}</td>
+</tr>`,
+    )
+    .join('\n')
+}
+
 const renderLoadVideos = (summary: RenderBenchmarkSummary): string => {
   return summary.editors
     .map(
@@ -239,6 +316,14 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
     </section>`,
       )
       .join('\n')}
+    <section class="card">
+      <h2>Painting details</h2>
+      <p class="description">Paint events, main-thread paint time, and cumulative clip area come from the Chromium trace after the benchmark navigation commits and until the highlighted document is ready. Areas may overlap, so they are work estimates rather than unique screen coverage. Paint commands come from DevTools Paint Profiler snapshots captured after the timed load and memory sample. Layer metrics describe the final composited layer tree; content-layer area is the sum of its content-bearing layer bounds.</p>
+      <table>
+        <thead><tr><th>Editor</th><th>Paint events</th><th>Paint time</th><th>Painted area</th><th>Largest paint</th><th>Paint commands</th><th>Layers</th><th>Content layers</th><th>Content layer area</th></tr></thead>
+        <tbody>${renderPaintRows(summary)}</tbody>
+      </table>
+    </section>
     <section class="card">
       <h2>Results</h2>
       <p class="description">Average values are computed from successful measured iterations; charts also show the fastest run.</p>

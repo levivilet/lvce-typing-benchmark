@@ -4,10 +4,12 @@ import { chromium, type Browser, type BrowserContext, type CDPSession, type Page
 import { renderDocument } from '../fixtures/renderDocument.ts'
 import { analyzeRenderResults } from './renderAnalyze.ts'
 import { getBrowserProcessMemory } from './browserProcessMemory.ts'
-import { startCpuTrace, stopCpuTrace } from './cpuTrace.ts'
+import { startTrace, stopTrace } from './cpuTrace.ts'
 import { getEditorFixture } from './editors.ts'
+import { LayerMetricsCollector } from './paintMetrics.ts'
 import { startStaticServer } from './staticServer.ts'
-import type { EditorFixture, FixtureManifest } from './types.ts'
+import { getTracePaintMetrics } from './tracePaintMetrics.ts'
+import type { EditorFixture, FixtureManifest, TraceProfile } from './types.ts'
 import type {
   RenderBenchmarkMetadata,
   RenderBenchmarkOptions,
@@ -71,6 +73,7 @@ const runIteration = async (
   let browser: Browser | undefined
   let browserCdp: CDPSession | undefined
   let pageCdp: CDPSession | undefined
+  let layerMetricsCollector: LayerMetricsCollector | undefined
   let tracing = false
   const profileFileName = `${fixture.id}-${iteration}.json`
   const profilePath = join(profileDirectory, profileFileName)
@@ -83,10 +86,10 @@ const runIteration = async (
     const page = await context.newPage()
     browserCdp = await browser.newBrowserCDPSession()
     pageCdp = await context.newCDPSession(page)
-    if (options.profile && !warmup) {
-      await startCpuTrace(browserCdp)
-      tracing = true
-    }
+    layerMetricsCollector = new LayerMetricsCollector(pageCdp)
+    await layerMetricsCollector.start()
+    await startTrace(browserCdp, options.profile && !warmup)
+    tracing = true
     await page.goto(getEditorUrl(fixture, staticUrl), {
       timeout: options.timeout,
       waitUntil: 'domcontentloaded',
@@ -95,17 +98,29 @@ const runIteration = async (
       timeout: options.timeout,
     })
     const [domContentLoadedMs, renderDurationMs] = await Promise.all([getNavigationTiming(page), getRenderDuration(page)])
-    if (tracing) {
-      await stopCpuTrace(browserCdp, profilePath)
-      tracing = false
+    const traceSource = await stopTrace(browserCdp)
+    tracing = false
+    const trace = JSON.parse(traceSource) as TraceProfile
+    const paintMetrics = getTracePaintMetrics(trace)
+    if (options.profile && !warmup) {
+      await writeFile(profilePath, traceSource)
     }
     const memory = await measureMemory(browserCdp, pageCdp)
+    const layerMetrics = await layerMetricsCollector.collect()
     return {
+      contentLayerAreaPixels: layerMetrics.contentLayerAreaPixels,
+      contentLayerCount: layerMetrics.contentLayerCount,
       domContentLoadedMs,
       editor: fixture.id,
       gpuProcessMemoryBytes: memory.gpuProcessMemoryBytes,
       iteration,
       javascriptHeapUsedBytes: memory.javascriptHeapUsedBytes,
+      largestPaintAreaPixels: paintMetrics.largestPaintAreaPixels,
+      layerCount: layerMetrics.layerCount,
+      paintCommandCount: layerMetrics.paintCommandCount,
+      paintDurationMs: paintMetrics.paintDurationMs,
+      paintedAreaPixels: paintMetrics.paintedAreaPixels,
+      paintEventCount: paintMetrics.paintEventCount,
       ...(options.profile && !warmup ? { profilePath: `profiles/${profileFileName}` } : {}),
       rendererProcessMemoryBytes: memory.rendererProcessMemoryBytes,
       renderDurationMs,
@@ -114,21 +129,30 @@ const runIteration = async (
     }
   } catch (error) {
     if (browserCdp && tracing) {
-      await stopCpuTrace(browserCdp, profilePath).catch(() => undefined)
+      await stopTrace(browserCdp).catch(() => undefined)
     }
     return {
+      contentLayerAreaPixels: null,
+      contentLayerCount: null,
       domContentLoadedMs: null,
       editor: fixture.id,
       error: error instanceof Error ? error.stack || error.message : String(error),
       gpuProcessMemoryBytes: null,
       iteration,
       javascriptHeapUsedBytes: null,
+      largestPaintAreaPixels: null,
+      layerCount: null,
+      paintCommandCount: null,
+      paintDurationMs: null,
+      paintedAreaPixels: null,
+      paintEventCount: null,
       rendererProcessMemoryBytes: null,
       renderDurationMs: 0,
       success: false,
       warmup,
     }
   } finally {
+    await layerMetricsCollector?.stop().catch(() => undefined)
     await pageCdp?.detach().catch(() => undefined)
     await browserCdp?.detach().catch(() => undefined)
     await browser?.close().catch(() => undefined)

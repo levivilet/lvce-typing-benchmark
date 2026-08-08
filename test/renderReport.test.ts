@@ -25,10 +25,18 @@ test('writes the syntax highlight report and requested charts', async () => {
         version: '6.0.2',
         iterations: 20,
         failures: 0,
+        contentLayerAreaPixels: bytes,
+        contentLayerCount: milliseconds,
         domContentLoadedMs: milliseconds,
         renderDurationMs: milliseconds,
         javascriptDurationMs: milliseconds,
         javascriptHeapUsedBytes: bytes,
+        largestPaintAreaPixels: bytes,
+        layerCount: milliseconds,
+        paintCommandCount: milliseconds,
+        paintDurationMs: milliseconds,
+        paintedAreaPixels: bytes,
+        paintEventCount: milliseconds,
         rendererProcessMemoryBytes: bytes,
         gpuProcessMemoryBytes: bytes,
       },
@@ -41,6 +49,9 @@ test('writes the syntax highlight report and requested charts', async () => {
   const video = await readFile(join(output, 'videos', 'codemirror.webm'), 'utf8')
   const renderChart = await readFile(join(output, 'syntax-highlight-render.svg'), 'utf8')
   const gpuChart = await readFile(join(output, 'gpu-process-memory.svg'), 'utf8')
+  const paintChart = await readFile(join(output, 'painted-area.svg'), 'utf8')
+  const paintDurationChart = await readFile(join(output, 'paint-duration.svg'), 'utf8')
+  const layerChart = await readFile(join(output, 'composited-layers.svg'), 'utf8')
   assert.match(html, /Render Results/)
   assert.match(html, /without a surrounding IDE workbench/)
   assert.match(html, /IDE startup benchmark/)
@@ -50,4 +61,9 @@ test('writes the syntax highlight report and requested charts', async () => {
   assert.equal(video, 'test video')
   assert.match(renderChart, /CodeMirror/)
   assert.match(gpuChart, /GPU process memory/)
+  assert.match(paintChart, /Cumulative painted area/)
+  assert.match(paintDurationChart, /Paint time/)
+  assert.match(layerChart, /Composited layers/)
+  assert.match(html, /Painting details/)
+  assert.match(html, /Paint Profiler snapshots/)
 })

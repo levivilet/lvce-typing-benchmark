@@ -33,6 +33,10 @@ test('writes the syntax highlight report and requested charts', async () => {
         largestPaintAreaPixels: bytes,
         layerCount: milliseconds,
         paintCommandCount: milliseconds,
+        paintCommands: [
+          { method: 'drawTextBlob', count: { mean: 7, min: 6, max: 8, p95: 8 } },
+          { method: 'drawRect', count: { mean: 3, min: 2, max: 4, p95: 4 } },
+        ],
         paintDurationMs: milliseconds,
         paintedAreaPixels: bytes,
         paintEventCount: milliseconds,
@@ -65,4 +69,8 @@ test('writes the syntax highlight report and requested charts', async () => {
   assert.match(layerChart, /Composited layers/)
   assert.match(html, /Painting details/)
   assert.match(html, /Paint Profiler snapshots/)
+  assert.match(html, /Paint command breakdown/)
+  assert.match(html, /exact canvas command method names/)
+  assert.match(html, /<code>drawTextBlob<\/code>/)
+  assert.match(html, /<code>drawRect<\/code>/)
 })

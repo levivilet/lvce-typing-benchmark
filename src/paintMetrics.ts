@@ -83,7 +83,9 @@ const getPaintCommandCount = async (
       snapshotId = createdSnapshotId
       const { commandLog } = await cdp.send('LayerTree.snapshotCommandLog', { snapshotId })
       paintCommandCount += commandLog.length
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.info(`Paint Profiler snapshot unavailable for layer ${layer.layerId}: ${message}`)
       return null
     } finally {
       if (snapshotId) {

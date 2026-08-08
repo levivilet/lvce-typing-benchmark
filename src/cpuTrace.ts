@@ -13,15 +13,19 @@ const readProtocolStream = async (cdp: CDPSession, stream: string): Promise<stri
   return result
 }
 
-export const startCpuTrace = async (cdp: CDPSession): Promise<void> => {
+export const startTrace = async (cdp: CDPSession, cpuProfile: boolean): Promise<void> => {
   await cdp.send('Tracing.start', {
-    categories: 'devtools.timeline,v8,disabled-by-default-v8.cpu_profiler',
-    options: 'sampling-frequency=1000',
+    categories: cpuProfile ? 'devtools.timeline,v8,disabled-by-default-v8.cpu_profiler' : 'devtools.timeline',
+    ...(cpuProfile ? { options: 'sampling-frequency=1000' } : {}),
     transferMode: 'ReturnAsStream',
   })
 }
 
-export const stopCpuTrace = async (cdp: CDPSession, outputPath: string): Promise<void> => {
+export const startCpuTrace = async (cdp: CDPSession): Promise<void> => {
+  await startTrace(cdp, true)
+}
+
+export const stopTrace = async (cdp: CDPSession): Promise<string> => {
   const tracingComplete = new Promise<string>((resolvePromise) => {
     cdp.once('Tracing.tracingComplete', (event: { readonly stream?: string }) => {
       resolvePromise(event.stream || '')
@@ -32,5 +36,9 @@ export const stopCpuTrace = async (cdp: CDPSession, outputPath: string): Promise
   if (!stream) {
     throw new Error('Chromium CPU trace did not return a stream')
   }
-  await writeFile(outputPath, await readProtocolStream(cdp, stream))
+  return readProtocolStream(cdp, stream)
+}
+
+export const stopCpuTrace = async (cdp: CDPSession, outputPath: string): Promise<void> => {
+  await writeFile(outputPath, await stopTrace(cdp))
 }

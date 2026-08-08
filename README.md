@@ -70,9 +70,14 @@ encoding from affecting benchmark measurements.
 
 Raw results include DOMContentLoaded, syntax-highlight render time, sampled
 JavaScript execution, main-page JavaScript heap, Chromium renderer-process
-resident memory, and GPU-process resident memory on Linux. `npm run
-report:render` writes a dedicated static report to `.tmp/pages/rendering/` with
-the load recordings stacked above comparison charts suitable for GitHub Pages.
+resident memory, and GPU-process resident memory on Linux. Chromium tracing
+also records paint-event counts, main-thread paint time, and paint clip
+areas. The LayerTree protocol supplies DevTools Paint Profiler command counts
+and the final composited/content-bearing layer counts and bounds. Paint areas
+are cumulative work estimates: overlapping or repainted pixels are included
+once per paint event. `npm run report:render` writes a
+dedicated static report to `.tmp/pages/rendering/` with the load recordings
+stacked above comparison charts suitable for GitHub Pages.
 
 ## IDE startup benchmark
 

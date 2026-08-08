@@ -35,6 +35,30 @@ export const analyzeRenderResults = async (input: string): Promise<RenderBenchma
         version: fixture.version,
         iterations: editorResults.length,
         failures: editorResults.length - successfulResults.length,
+        paintEventCount: computeStats(
+          successfulResults.flatMap((result) => (result.paintEventCount === null ? [] : [result.paintEventCount])),
+        ),
+        paintedAreaPixels: computeStats(
+          successfulResults.flatMap((result) => (result.paintedAreaPixels === null ? [] : [result.paintedAreaPixels])),
+        ),
+        largestPaintAreaPixels: computeStats(
+          successfulResults.flatMap((result) => (result.largestPaintAreaPixels === null ? [] : [result.largestPaintAreaPixels])),
+        ),
+        paintCommandCount: computeStats(
+          successfulResults.flatMap((result) => (result.paintCommandCount === null ? [] : [result.paintCommandCount])),
+        ),
+        paintDurationMs: computeStats(
+          successfulResults.flatMap((result) => (result.paintDurationMs === null ? [] : [result.paintDurationMs])),
+        ),
+        layerCount: computeStats(
+          successfulResults.flatMap((result) => (result.layerCount === null ? [] : [result.layerCount])),
+        ),
+        contentLayerCount: computeStats(
+          successfulResults.flatMap((result) => (result.contentLayerCount === null ? [] : [result.contentLayerCount])),
+        ),
+        contentLayerAreaPixels: computeStats(
+          successfulResults.flatMap((result) => (result.contentLayerAreaPixels === null ? [] : [result.contentLayerAreaPixels])),
+        ),
         domContentLoadedMs: computeStats(
           successfulResults.flatMap((result) => (result.domContentLoadedMs === null ? [] : [result.domContentLoadedMs])),
         ),

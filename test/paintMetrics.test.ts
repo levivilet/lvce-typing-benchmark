@@ -6,14 +6,13 @@ test('summarizes the final layer tree', () => {
   assert.deepEqual(
     computeLayerMetrics(
       [
-        { layerId: 'root', width: 1280, height: 720, drawsContent: false },
-        { layerId: 'content-1', width: 100, height: 20, drawsContent: true },
-        { layerId: 'content-2', width: 40, height: 10, drawsContent: true },
+        { layerId: 'root', drawsContent: false },
+        { layerId: 'content-1', drawsContent: true },
+        { layerId: 'content-2', drawsContent: true },
       ],
       17,
     ),
     {
-      contentLayerAreaPixels: 2_400,
       contentLayerCount: 2,
       layerCount: 3,
       paintCommandCount: 17,
@@ -23,7 +22,6 @@ test('summarizes the final layer tree', () => {
 
 test('reports missing layer information', () => {
   assert.deepEqual(computeLayerMetrics(undefined, null), {
-    contentLayerAreaPixels: null,
     contentLayerCount: null,
     layerCount: null,
     paintCommandCount: null,

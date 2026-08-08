@@ -108,7 +108,6 @@ const runIteration = async (
     const memory = await measureMemory(browserCdp, pageCdp)
     const layerMetrics = await layerMetricsCollector.collect()
     return {
-      contentLayerAreaPixels: layerMetrics.contentLayerAreaPixels,
       contentLayerCount: layerMetrics.contentLayerCount,
       domContentLoadedMs,
       editor: fixture.id,
@@ -132,7 +131,6 @@ const runIteration = async (
       await stopTrace(browserCdp).catch(() => undefined)
     }
     return {
-      contentLayerAreaPixels: null,
       contentLayerCount: null,
       domContentLoadedMs: null,
       editor: fixture.id,

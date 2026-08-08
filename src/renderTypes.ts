@@ -12,7 +12,6 @@ export interface RenderBenchmarkOptions {
 }
 
 export interface RenderIterationResult {
-  readonly contentLayerAreaPixels: number | null
   readonly contentLayerCount: number | null
   readonly domContentLoadedMs: number | null
   readonly editor: EditorId
@@ -40,7 +39,6 @@ export interface RenderBenchmarkMetadata {
 }
 
 export interface RenderEditorSummary {
-  readonly contentLayerAreaPixels: Stats
   readonly contentLayerCount: Stats
   readonly domContentLoadedMs: Stats
   readonly failures: number

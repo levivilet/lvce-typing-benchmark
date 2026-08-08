@@ -70,11 +70,12 @@ export class LayerMetricsCollector {
   }
 }
 
-const getPaintCommandCount = async (
+export const getPaintCommandCount = async (
   cdp: CDPSession,
   layers: readonly CompositedLayer[],
 ): Promise<number | null> => {
   let paintCommandCount = 0
+  let profiledLayerCount = 0
   const contentLayers = layers.filter((layer) => layer.drawsContent)
   for (const layer of contentLayers) {
     let snapshotId: string | undefined
@@ -83,7 +84,13 @@ const getPaintCommandCount = async (
       snapshotId = createdSnapshotId
       const { commandLog } = await cdp.send('LayerTree.snapshotCommandLog', { snapshotId })
       paintCommandCount += commandLog.length
-    } catch {
+      profiledLayerCount++
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.includes('Layer does not draw content') || message.includes('Layer does not produce picture')) {
+        continue
+      }
+      console.info(`Paint Profiler snapshot unavailable for layer ${layer.layerId}: ${message}`)
       return null
     } finally {
       if (snapshotId) {
@@ -91,5 +98,5 @@ const getPaintCommandCount = async (
       }
     }
   }
-  return contentLayers.length === 0 ? null : paintCommandCount
+  return profiledLayerCount === 0 ? null : paintCommandCount
 }

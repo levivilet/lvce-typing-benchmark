@@ -25,7 +25,6 @@ test('writes the syntax highlight report and requested charts', async () => {
         version: '6.0.2',
         iterations: 20,
         failures: 0,
-        contentLayerAreaPixels: bytes,
         contentLayerCount: milliseconds,
         domContentLoadedMs: milliseconds,
         renderDurationMs: milliseconds,

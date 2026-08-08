@@ -56,9 +56,6 @@ export const analyzeRenderResults = async (input: string): Promise<RenderBenchma
         contentLayerCount: computeStats(
           successfulResults.flatMap((result) => (result.contentLayerCount === null ? [] : [result.contentLayerCount])),
         ),
-        contentLayerAreaPixels: computeStats(
-          successfulResults.flatMap((result) => (result.contentLayerAreaPixels === null ? [] : [result.contentLayerAreaPixels])),
-        ),
         domContentLoadedMs: computeStats(
           successfulResults.flatMap((result) => (result.domContentLoadedMs === null ? [] : [result.domContentLoadedMs])),
         ),

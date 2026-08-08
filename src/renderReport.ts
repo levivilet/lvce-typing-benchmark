@@ -249,7 +249,6 @@ const renderPaintRows = (summary: RenderBenchmarkSummary): string => {
   <td>${formatValue(editor.paintCommandCount.mean, 'count')}</td>
   <td>${formatValue(editor.layerCount.mean, 'count')}</td>
   <td>${formatValue(editor.contentLayerCount.mean, 'count')}</td>
-  <td>${formatValue(editor.contentLayerAreaPixels.mean, 'area')}</td>
 </tr>`,
     )
     .join('\n')
@@ -318,9 +317,9 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
       .join('\n')}
     <section class="card">
       <h2>Painting details</h2>
-      <p class="description">Paint events, main-thread paint time, and cumulative clip area come from the Chromium trace after the benchmark navigation commits and until the highlighted document is ready. Areas may overlap, so they are work estimates rather than unique screen coverage. Paint commands come from DevTools Paint Profiler snapshots captured after the timed load and memory sample. Layer metrics describe the final composited layer tree; content-layer area is the sum of its content-bearing layer bounds.</p>
+      <p class="description">Paint events, main-thread paint time, and cumulative clip area come from the Chromium trace after the benchmark navigation commits and until the highlighted document is ready. Areas may overlap, so they are work estimates rather than unique screen coverage. Paint commands come from DevTools Paint Profiler snapshots captured after the timed load and memory sample. Layer metrics describe the final composited layer tree.</p>
       <table>
-        <thead><tr><th>Editor</th><th>Paint events</th><th>Paint time</th><th>Painted area</th><th>Largest paint</th><th>Paint commands</th><th>Layers</th><th>Content layers</th><th>Content layer area</th></tr></thead>
+        <thead><tr><th>Editor</th><th>Paint events</th><th>Paint time</th><th>Painted area</th><th>Largest paint</th><th>Paint commands</th><th>Layers</th><th>Content layers</th></tr></thead>
         <tbody>${renderPaintRows(summary)}</tbody>
       </table>
     </section>

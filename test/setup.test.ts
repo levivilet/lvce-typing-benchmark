@@ -82,7 +82,7 @@ test('generates separate editor and IDE fixtures', async () => {
       kind: 'static',
       label: 'VS Code',
       path: 'vscode-ide/',
-      version: '1.108.2',
+      version: '1.132.1',
     })
     assert.deepEqual(
       manifest.editors.map((editor) => editor.id),

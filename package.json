@@ -25,25 +25,25 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@codemirror/lang-html": "6.4.11",
-    "@github1s/vscode-web": "0.27.0",
-    "@lvce-editor/editor-worker": "19.27.0",
-    "@lvce-editor/renderer-process": "30.19.0",
-    "@lvce-editor/server": "0.93.17",
-    "@lvce-editor/static-server": "0.93.17",
-    "@lvce-editor/syntax-highlighting-worker": "2.4.3",
+    "@codemirror/lang-html": "6.4.12",
+    "@github1s/vscode-web": "0.30.2",
+    "@lvce-editor/editor-worker": "19.59.0",
+    "@lvce-editor/renderer-process": "30.51.0",
+    "@lvce-editor/server": "0.113.12",
+    "@lvce-editor/static-server": "0.113.12",
+    "@lvce-editor/syntax-highlighting-worker": "2.5.1",
     "codemirror": "6.0.2",
     "monaco-editor": "0.56.0"
   },
   "devDependencies": {
-    "@lvce-editor/eslint-config": "^17.5.0",
+    "@lvce-editor/eslint-config": "^18.9.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
-    "@types/node": "^24.10.1",
-    "eslint": "^10.7.0",
-    "playwright": "^1.57.0",
-    "rollup": "^4.62.3",
+    "@types/node": "^24.13.3",
+    "eslint": "^10.10.0",
+    "playwright": "^1.63.0",
+    "rollup": "^4.63.1",
     "rollup-plugin-css-only": "^4.5.5",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   }
 }

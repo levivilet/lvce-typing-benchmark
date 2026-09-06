@@ -35,7 +35,7 @@ in-process command-map function calls, so the fixture creates no web workers
 and performs no cross-thread serialization.
 
 The IDE startup fixtures are separate. LVCE's published assets are copied from
-`@lvce-editor/static-server` and served by `@lvce-editor/server`. VS Code 1.108.2
+`@lvce-editor/static-server` and served by `@lvce-editor/server`. VS Code 1.132.1
 comes from the pinned `@github1s/vscode-web` static export used by GitHub1s and
 is served entirely from local generated assets. The VS Code package is roughly
 107 MB unpacked but is not committed to this repository.

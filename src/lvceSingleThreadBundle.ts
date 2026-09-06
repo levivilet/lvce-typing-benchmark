@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { bundleJavaScriptSource, generateIife } from './rollupBundle.ts'
+import { bundleJavaScriptSource, generateBrowserIife, generateIife } from './rollupBundle.ts'
 
 const replaceExactlyOnce = (source: string, search: string, replacement: string, label: string): string => {
   const firstIndex = source.indexOf(search)
@@ -97,41 +97,18 @@ return {
   return `const __lvceEditorWorker = (() => {\n${withoutWorkerMain}\n})();\n`
 }
 
-const launchWorker = `const launchWorker = async (name, url, commandMap) => {
-  const {
-    port1,
-    port2
-  } = new MessageChannel();
-  await create$2({
-    commandMap: {},
-    name,
-    port: port1,
-    url
-  });
-  return create$3({
-    commandMap,
-    messagePort: port2
-  });
-};`
-
-const createRendererBundle = (source: string): string => {
-  const directLaunch = replaceExactlyOnce(
-    source,
-    launchWorker,
-    `const launchWorker = async (name) => {
+const startRenderer = `
+__lvceRenderer.main(async (name, url, commandMap) => {
   if (name === 'Syntax Highlighting Worker') {
     return __lvceCreateDirectRpc(__lvceSyntaxCommands);
   }
   if (name === 'Editor Worker') {
-    __lvceEditorWorker.configureRenderer(commandMapRef);
+    __lvceEditorWorker.configureRenderer(commandMap);
     return __lvceCreateDirectRpc(__lvceEditorWorker.commands);
   }
   throw new Error(\`Unsupported single-thread LVCE worker: \${name}\`);
-};`,
-    'renderer worker launcher',
-  )
-  return `(() => {\n${directLaunch}\n})();\n`
-}
+});
+`
 
 export interface SingleThreadLvceBundleOptions {
   readonly editorWorkerPath: string
@@ -143,7 +120,7 @@ export interface SingleThreadLvceBundleOptions {
 
 export const bundleSingleThreadLvce = async (options: SingleThreadLvceBundleOptions): Promise<void> => {
   const editorSource = await readFile(options.editorWorkerPath, 'utf8')
-  const rendererSource = await readFile(options.rendererProcessPath, 'utf8')
+  const rendererSource = await generateBrowserIife(options.rendererProcessPath, '__lvceRenderer')
   const syntaxSource = await readFile(options.syntaxHighlightingWorkerPath, 'utf8')
   const tokenizerSource = await generateIife(options.htmlTokenizerPath, '__lvceHtmlTokenizer')
   const bundle = [
@@ -151,7 +128,8 @@ export const bundleSingleThreadLvce = async (options: SingleThreadLvceBundleOpti
     tokenizerSource,
     createSyntaxBundle(syntaxSource),
     createEditorBundle(editorSource),
-    createRendererBundle(rendererSource),
+    rendererSource,
+    startRenderer,
   ].join('\n')
   await bundleJavaScriptSource(bundle, options.outputPath)
 }
@@ -160,7 +138,7 @@ export const getSingleThreadLvceBundlePaths = (root: string, lvceAssetDirectory:
   editorWorkerPath: join(root, 'node_modules', '@lvce-editor', 'editor-worker', 'dist', 'editorWorkerMain.js'),
   htmlTokenizerPath: join(lvceAssetDirectory, 'extensions', 'builtin.language-basics-html', 'src', 'tokenizeHtml.js'),
   outputPath: join(output, 'index.js'),
-  rendererProcessPath: join(root, 'node_modules', '@lvce-editor', 'renderer-process', 'dist', 'editorOnlyRendererProcessMain.js'),
+  rendererProcessPath: join(root, 'fixtures', 'lvce', 'main.ts'),
   syntaxHighlightingWorkerPath: join(
     root,
     'node_modules',

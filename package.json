@@ -19,6 +19,7 @@
     "report:startup": "node src/startupReportCli.ts",
     "setup": "node src/setup.ts",
     "test": "node --test \"test/**/*.test.ts\"",
+    "test:e2e": "node --test \"e2e/**/*.test.ts\"",
     "type-check": "tsc --noEmit"
   },
   "engines": {
@@ -32,6 +33,7 @@
     "@lvce-editor/server": "0.113.12",
     "@lvce-editor/static-server": "0.113.12",
     "@lvce-editor/syntax-highlighting-worker": "2.5.1",
+    "ace-builds": "1.44.0",
     "codemirror": "6.0.2",
     "monaco-editor": "0.56.0"
   },

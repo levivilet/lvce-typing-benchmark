@@ -68,6 +68,15 @@ test('generates separate editor and IDE fixtures', async () => {
     assert.match(singleThreadBundle, /Direct LVCE command not found/)
     assert.match(singleThreadBundle, /embedded:html/)
 
+    const acePackage = JSON.parse(await readFile(resolve('node_modules', 'ace-builds', 'package.json'), 'utf8')) as { readonly version: string }
+    assert.deepEqual(manifest.editors.find((editor) => editor.id === 'ace-editor'), {
+      id: 'ace-editor',
+      kind: 'static',
+      label: 'Ace Editor',
+      path: 'ace-editor/',
+      version: acePackage.version,
+    })
+    await assertMinified(join(output, 'ace-editor', 'index.js'))
     await assertMinified(join(output, 'codemirror', 'index.js'))
     await assertMinified(join(output, 'monaco-editor', 'index.js'))
     await assertMinified(join(output, 'lvce-editor-minimal', 'index.js'))
@@ -86,7 +95,7 @@ test('generates separate editor and IDE fixtures', async () => {
     })
     assert.deepEqual(
       manifest.editors.map((editor) => editor.id),
-      ['lvce-editor-minimal', 'lvce-editor-single-thread', 'monaco-editor', 'codemirror'],
+      ['lvce-editor-minimal', 'lvce-editor-single-thread', 'monaco-editor', 'codemirror', 'ace-editor'],
     )
     assert.deepEqual(
       manifest.ides.map((ide) => ide.id),

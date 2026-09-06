@@ -23,6 +23,7 @@ jobs:
       - run: npm run type-check
       - run: npm run setup
       - run: npm run install-browser:ci
+      - run: npm run test:e2e
       - name: Run benchmark smoke test
         env:
           CHARACTERS: "500"

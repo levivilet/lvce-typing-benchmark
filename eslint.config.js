@@ -5,6 +5,12 @@ export default defineConfig([
   ...config.default,
   ...config.recommendedNode,
   {
+    files: ['e2e/**/*.ts'],
+    rules: {
+      'e2e/no-imports': 'off',
+    },
+  },
+  {
     rules: {
       '@cspell/spellchecker': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',

@@ -9,7 +9,7 @@ on:
       editors:
         description: "Comma-separated editors"
         required: false
-        default: "lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror"
+        default: "lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,ace-editor"
       ides:
         description: "Comma-separated IDEs"
         required: false
@@ -61,9 +61,10 @@ jobs:
       - run: npm run type-check
       - run: npm run setup
       - run: npm run install-browser:ci
+      - run: npm run test:e2e
       - name: Run benchmark
         env:
-          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror' }}
+          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,ace-editor' }}
           CHARACTERS: ${{ github.event.inputs.characters || '500' }}
           ITERATIONS: ${{ github.event.inputs.iterations || '20' }}
           WARMUPS: ${{ github.event.inputs.warmups || '1' }}
@@ -71,7 +72,7 @@ jobs:
         run: npm run benchmark:ci
       - name: Run syntax highlight rendering benchmark
         env:
-          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror' }}
+          EDITORS: ${{ github.event.inputs.editors || 'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,ace-editor' }}
           ITERATIONS: ${{ github.event.inputs.iterations || '20' }}
           WARMUPS: ${{ github.event.inputs.warmups || '1' }}
           PROFILE: ${{ github.event.inputs.profile || 'true' }}

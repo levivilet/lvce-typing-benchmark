@@ -1,9 +1,9 @@
 # LVCE Typing Benchmark
 
 Measure editor typing and syntax-highlight rendering in LVCE Editor Only, its
-single-thread variant, Monaco Editor, CodeMirror 6, CodeMirror 5, and CodeJar
-with Prism, plus browser-side IDE startup in the full LVCE Editor and VS Code,
-under repeatable Chromium/Playwright workloads.
+single-thread variant, Monaco Editor, CodeMirror 6, CodeMirror 5, CodeJar
+with Prism, and Ace Editor, plus browser-side IDE startup in the full LVCE Editor
+and VS Code, under repeatable Chromium/Playwright workloads.
 
 ## Run locally
 
@@ -21,7 +21,7 @@ npm run report:startup
 ```
 
 `npm run setup` generates `.tmp/static/` with pinned fixtures. All fixture work
-runs sequentially. Monaco, both CodeMirror versions, and CodeJar with Prism are
+runs sequentially. Monaco, both CodeMirror versions, CodeJar with Prism, and Ace are
 bundled with Rollup, and every generated JavaScript artifact is minified with Rollup's Terser plugin. The
 editor-only LVCE fixture contains only a minimal renderer process, the editor
 worker, and the syntax-highlighting worker. The renderer process communicates
@@ -34,6 +34,11 @@ in one JavaScript file. Worker launch and message/RPC dispatch are replaced by
 in-process command-map function calls, so the fixture creates no web workers
 and performs no cross-thread serialization.
 
+Ace is bundled from the pinned `ace-builds` package with its HTML mode included
+locally. Typing uses plain text; rendering uses HTML syntax highlighting with
+Ace's background validation worker disabled. Ace reports readiness after its
+initial render, followed by the shared two-animation-frame wait for rendering.
+
 The IDE startup fixtures are separate. LVCE's published assets are copied from
 `@lvce-editor/static-server` and served by `@lvce-editor/server`. VS Code 1.132.1
 comes from the pinned `@github1s/vscode-web` static export used by GitHub1s and
@@ -41,7 +46,7 @@ is served entirely from local generated assets. The VS Code package is roughly
 107 MB unpacked but is not committed to this repository.
 
 The default typing benchmark performs one warmup and 20 measured iterations for
-both LVCE variants, Monaco, both CodeMirror versions, and CodeJar with Prism.
+both LVCE variants, Monaco, both CodeMirror versions, CodeJar with Prism, and Ace.
 Each measured iteration:
 
 1. opens a fresh browser context at 1280×720,
@@ -65,7 +70,7 @@ its report version includes both CodeJar and Prism versions.
 ## Syntax highlight rendering benchmark
 
 `npm run benchmark:render` runs one warmup and 20 measured iterations for the
-same six editor-only fixtures. Every iteration launches a fresh Chromium
+same seven editor-only fixtures. Every iteration launches a fresh Chromium
 instance at 1280×720 and opens the same roughly 30-line Hello World HTML
 document with HTML syntax highlighting enabled. The measurement ends after
 highlighted tokens are in the DOM and two animation frames have completed.
@@ -105,12 +110,12 @@ to `.tmp/pages/ide-startup/`.
 Useful options:
 
 ```sh
-npm run benchmark -- --editors monaco-editor,codemirror --iterations 5
+npm run benchmark -- --editors monaco-editor,codemirror,ace-editor --iterations 5
 npm run benchmark -- --editors codemirror5,codejar-prism --iterations 5
 npm run benchmark -- --characters 1000 --warmups 2
 npm run benchmark -- --no-profile
 npm run report -- --input results --output .tmp/pages
-npm run benchmark:render -- --editors monaco-editor,codemirror --iterations 5
+npm run benchmark:render -- --editors monaco-editor,codemirror,ace-editor --iterations 5
 npm run report:render -- --input render-results --output .tmp/pages/rendering
 npm run benchmark:startup -- --ides lvce-editor,vscode --iterations 5
 npm run report:startup -- --input startup-results --output .tmp/pages/ide-startup
@@ -118,8 +123,8 @@ npm run report:startup -- --input startup-results --output .tmp/pages/ide-startu
 
 ## Continuous integration
 
-Pull requests run lint, tests, type checking, fixture generation, and one
-profiled smoke iteration for typing, rendering, and IDE startup. Pushes to
+Pull requests run lint, tests, type checking, fixture generation, browser fixture
+checks, and one profiled smoke iteration for typing, rendering, and IDE startup. Pushes to
 `main` run 20 profiled iterations for all three benchmark types, upload the raw
 results, profiles, and load recordings as an artifact, and deploy separate
 editor, rendering, and IDE startup reports to GitHub Pages.

@@ -160,7 +160,7 @@ const bundleVscode = async (outputRoot: string): Promise<void> => {
 }
 
 const bundleEditor = async (
-  id: 'monaco-editor' | 'codemirror' | 'codemirror5' | 'codejar-prism',
+  id: 'monaco-editor' | 'codemirror' | 'codemirror5' | 'codejar-prism' | 'ace-editor',
   sourceDirectory: string,
   outputRoot: string,
 ): Promise<void> => {
@@ -180,6 +180,7 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
   await bundleEditor('codemirror', 'codemirror', resolvedOutput)
   await bundleEditor('codemirror5', 'codemirror5', resolvedOutput)
   await bundleEditor('codejar-prism', 'codejar-prism', resolvedOutput)
+  await bundleEditor('ace-editor', 'ace', resolvedOutput)
   await bundleMinimalLvceEditor(resolvedOutput)
   await bundleSingleThreadLvceEditor(resolvedOutput)
   await bundleVscode(resolvedOutput)
@@ -228,6 +229,13 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
       version: `${await readPackageVersion('codejar')} + Prism ${await readPackageVersion('prismjs')}`,
       kind: 'static',
       path: 'codejar-prism/',
+    },
+    {
+      id: 'ace-editor',
+      label: editorLabels['ace-editor'],
+      version: await readPackageVersion('ace-builds'),
+      kind: 'static',
+      path: 'ace-editor/',
     },
   ]
   const ides = [

@@ -9,7 +9,7 @@ on:
       editors:
         description: "Comma-separated editors"
         required: false
-        default: "lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,codemirror5,codejar-prism"
+        default: "lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,codemirror5,codejar-prism,ace-editor"
       ides:
         description: "Comma-separated IDEs"
         required: false

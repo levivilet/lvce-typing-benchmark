@@ -7,6 +7,7 @@ export const editorIds: readonly EditorId[] = [
   'codemirror',
   'codemirror5',
   'codejar-prism',
+  'ace-editor',
 ]
 
 export const editorLabels: Readonly<Record<EditorId, string>> = {
@@ -16,6 +17,7 @@ export const editorLabels: Readonly<Record<EditorId, string>> = {
   codemirror: 'CodeMirror 6',
   codemirror5: 'CodeMirror 5',
   'codejar-prism': 'CodeJar + Prism',
+  'ace-editor': 'Ace Editor',
 }
 
 export const isEditorId = (value: string): value is EditorId => {

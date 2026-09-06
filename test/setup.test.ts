@@ -13,8 +13,8 @@ test('generates separate editor and IDE fixtures', async () => {
   const output = resolve('.tmp', 'setup-test-static')
   try {
     const manifest = await setupFixtures(output)
-    const rendererPackage = JSON.parse(
-      await readFile(resolve('node_modules', '@lvce-editor', 'renderer-process', 'package.json'), 'utf8'),
+    const editorPackage = JSON.parse(
+      await readFile(resolve('node_modules', '@lvce-editor', 'editor-worker', 'package.json'), 'utf8'),
     ) as { readonly version: string }
     const fixture = manifest.editors.find((editor) => editor.id === 'lvce-editor-minimal')
     assert.deepEqual(fixture, {
@@ -22,7 +22,7 @@ test('generates separate editor and IDE fixtures', async () => {
       kind: 'static',
       label: 'LVCE Editor Only',
       path: 'lvce-editor-minimal/',
-      version: rendererPackage.version,
+      version: editorPackage.version,
     })
 
     const files = await readdir(join(output, 'lvce-editor-minimal'))
@@ -42,6 +42,12 @@ test('generates separate editor and IDE fixtures', async () => {
       false,
     )
 
+    for (const fixtureId of ['lvce-editor-minimal', 'lvce-editor-single-thread']) {
+      const css = await readFile(join(output, fixtureId, 'index.css'), 'utf8')
+      assert.match(css, /\.EditorInput/)
+      assert.match(css, /--EditorFontFamily/)
+    }
+
     const html = await readFile(join(output, 'lvce-editor-minimal', 'index.html'), 'utf8')
     assert.match(html, /"editorWorkerUrl":"\.\/editorWorkerMain\.js"/)
     assert.match(html, /"syntaxHighlightingWorkerUrl":"\.\/syntaxHighlightingWorkerMain\.js"/)
@@ -53,7 +59,7 @@ test('generates separate editor and IDE fixtures', async () => {
       kind: 'static',
       label: 'LVCE Editor Single Thread',
       path: 'lvce-editor-single-thread/',
-      version: rendererPackage.version,
+      version: editorPackage.version,
     })
     const singleThreadFiles = await readdir(join(output, 'lvce-editor-single-thread'))
     assert.deepEqual(singleThreadFiles.toSorted((left, right) => left.localeCompare(right)), [

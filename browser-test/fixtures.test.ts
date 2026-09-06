@@ -15,20 +15,22 @@ for (const [id, tokenSelector] of [
       try {
         const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
         const errors: string[] = []
-        page.on('pageerror', (error) => errors.push(error.message))
+        page.on('pageerror', (error) => {
+          errors.push(error.message)
+        })
         await page.goto(`${server.url}/${id}/`)
         await page.waitForFunction(() => document.documentElement.dataset.benchmarkReady === 'true')
-        assert.equal(await page.evaluate(() => window.__typingBenchmark?.getText()), '')
-        await page.evaluate(() => window.__typingBenchmark?.focus())
+        assert.equal(await page.evaluate(() => globalThis.window.__typingBenchmark?.getText()), '')
+        await page.evaluate(() => globalThis.window.__typingBenchmark?.focus())
         await page.keyboard.type('hello <world>&')
-        assert.equal(await page.evaluate(() => window.__typingBenchmark?.getText()), 'hello <world>&')
+        assert.equal(await page.evaluate(() => globalThis.window.__typingBenchmark?.getText()), 'hello <world>&')
         await page.keyboard.press('Backspace')
-        assert.equal(await page.evaluate(() => window.__typingBenchmark?.getText()), 'hello <world>')
+        assert.equal(await page.evaluate(() => globalThis.window.__typingBenchmark?.getText()), 'hello <world>')
         assert.equal(await page.locator(tokenSelector).count(), 0)
 
         await page.goto(`${server.url}/${id}/?render=true`)
         await page.waitForFunction(() => document.documentElement.dataset.renderBenchmarkReady === 'true')
-        assert.equal(await page.evaluate(() => window.__typingBenchmark?.getText()), renderDocument)
+        assert.equal(await page.evaluate(() => globalThis.window.__typingBenchmark?.getText()), renderDocument)
         assert.ok(await page.locator(tokenSelector).count() > 0)
         assert.equal(await page.locator(tokenSelector).first().isVisible(), true)
         const colors = await page.locator(tokenSelector).first().evaluate((token) => ({

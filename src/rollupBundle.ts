@@ -87,9 +87,10 @@ export const bundleJavaScriptSource = async (source: string, outputPath: string)
   await writeBundle(virtualEntryId, outputPath, [virtualEntryPlugin])
 }
 
-export const generateIife = async (input: string, name: string): Promise<string> => {
+export const generateIife = async (input: string, name: string, plugins: readonly Plugin[] = []): Promise<string> => {
   const bundle = await rollup({
     input,
+    plugins: [...plugins],
     treeshake: true,
   })
   try {
@@ -107,4 +108,8 @@ export const generateIife = async (input: string, name: string): Promise<string>
   } finally {
     await bundle.close()
   }
+}
+
+export const generateBrowserIife = async (input: string, name: string): Promise<string> => {
+  return generateIife(input, name, [nodeResolve({ browser: true }), typescriptTranspilePlugin()])
 }

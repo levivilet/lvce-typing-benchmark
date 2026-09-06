@@ -117,3 +117,9 @@ profiled smoke iteration for typing, rendering, and IDE startup. Pushes to
 `main` run 20 profiled iterations for all three benchmark types, upload the raw
 results, profiles, and load recordings as an artifact, and deploy separate
 editor, rendering, and IDE startup reports to GitHub Pages.
+
+The LVCE editor-only renderer and styles live in `fixtures/lvce` and are built
+by `npm run setup`. They use `@lvce-editor/rpc` and `@lvce-editor/virtual-dom`
+directly; no special `@lvce-editor/renderer-process` build is required. The
+single-thread fixture uses the same renderer with a direct command dispatcher.
+LVCE editor fixture versions in reports identify `@lvce-editor/editor-worker`.

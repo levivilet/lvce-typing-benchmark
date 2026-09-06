@@ -68,6 +68,8 @@ test('generates separate editor and IDE fixtures', async () => {
     assert.match(singleThreadBundle, /Direct LVCE command not found/)
     assert.match(singleThreadBundle, /embedded:html/)
 
+    await assertMinified(join(output, 'codemirror5', 'index.js'))
+    await assertMinified(join(output, 'codejar-prism', 'index.js'))
     await assertMinified(join(output, 'codemirror', 'index.js'))
     await assertMinified(join(output, 'monaco-editor', 'index.js'))
     await assertMinified(join(output, 'lvce-editor-minimal', 'index.js'))
@@ -86,7 +88,7 @@ test('generates separate editor and IDE fixtures', async () => {
     })
     assert.deepEqual(
       manifest.editors.map((editor) => editor.id),
-      ['lvce-editor-minimal', 'lvce-editor-single-thread', 'monaco-editor', 'codemirror'],
+      ['lvce-editor-minimal', 'lvce-editor-single-thread', 'monaco-editor', 'codemirror', 'codemirror5', 'codejar-prism'],
     )
     assert.deepEqual(
       manifest.ides.map((ide) => ide.id),

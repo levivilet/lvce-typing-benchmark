@@ -14,5 +14,5 @@
     "resolveJsonModule": true,
     "outDir": "dist"
   },
-  "include": ["fixtures/**/*.ts", "src/**/*.ts", "test/**/*.ts"]
+  "include": ["e2e/**/*.ts", "fixtures/**/*.ts", "src/**/*.ts", "test/**/*.ts"]
 }

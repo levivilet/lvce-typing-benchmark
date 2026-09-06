@@ -7,7 +7,7 @@ test('builds full CI benchmark arguments by default', () => {
     '--characters',
     '500',
     '--editors',
-    'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,ace-editor',
+    'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,codemirror5,codejar-prism,ace-editor',
     '--iterations',
     '20',
     '--warmups',

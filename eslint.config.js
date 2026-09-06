@@ -5,12 +5,6 @@ export default defineConfig([
   ...config.default,
   ...config.recommendedNode,
   {
-    files: ['e2e/**/*.ts'],
-    rules: {
-      'e2e/no-imports': 'off',
-    },
-  },
-  {
     rules: {
       '@cspell/spellchecker': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
@@ -18,6 +12,16 @@ export default defineConfig([
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/prefer-readonly-parameter-types': 'off',
       'no-console': 'off',
+      'no-restricted-syntax': [
+        'error',
+        ...config.default
+          .filter((entry) => entry.files?.includes('**/*.ts'))
+          .flatMap((entry) => entry.rules?.['no-restricted-syntax']?.slice(1) || []),
+        {
+          selector: 'NewExpression[callee.name="Promise"]',
+          message: 'Use Promise.withResolvers() instead of new Promise().',
+        },
+      ],
       'perfectionist/sort-imports': 'off',
       'perfectionist/sort-interfaces': 'off',
       'perfectionist/sort-objects': 'off',

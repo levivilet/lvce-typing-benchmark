@@ -35,9 +35,9 @@ const waitForTextLength = async (page: Page, expected: number, timeout: number):
 
 const waitForPaint = async (page: Page): Promise<void> => {
   await page.evaluate(async () => {
-    await new Promise<void>((resolvePromise) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolvePromise()))
-    })
+    const { promise, resolve: resolvePromise } = Promise.withResolvers<void>()
+    requestAnimationFrame(() => requestAnimationFrame(() => resolvePromise()))
+    await promise
   })
 }
 

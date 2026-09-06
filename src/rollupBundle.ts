@@ -1,8 +1,11 @@
+import commonjsPlugin, { type RollupCommonJSOptions } from '@rollup/plugin-commonjs'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
 import terserPlugin, { type Options as TerserOptions } from '@rollup/plugin-terser'
 import { rollup, type OutputChunk, type Plugin } from 'rollup'
 import css from 'rollup-plugin-css-only'
 import ts from 'typescript'
+
+const createCommonjsPlugin = commonjsPlugin as unknown as (options?: RollupCommonJSOptions) => Plugin
 
 const createTerserPlugin = terserPlugin as unknown as (options?: TerserOptions) => Plugin
 
@@ -63,6 +66,7 @@ const writeBundle = async (input: string, outputPath: string, plugins: readonly 
 export const bundleBrowserFixture = async (input: string, outputPath: string): Promise<void> => {
   await writeBundle(input, outputPath, [
     nodeResolve({ browser: true }),
+    createCommonjsPlugin(),
     typescriptTranspilePlugin(),
     css({ fileName: 'index.css' }),
   ])
@@ -87,9 +91,10 @@ export const bundleJavaScriptSource = async (source: string, outputPath: string)
   await writeBundle(virtualEntryId, outputPath, [virtualEntryPlugin])
 }
 
-export const generateIife = async (input: string, name: string): Promise<string> => {
+export const generateIife = async (input: string, name: string, plugins: readonly Plugin[] = []): Promise<string> => {
   const bundle = await rollup({
     input,
+    plugins: [...plugins],
     treeshake: true,
   })
   try {
@@ -107,4 +112,8 @@ export const generateIife = async (input: string, name: string): Promise<string>
   } finally {
     await bundle.close()
   }
+}
+
+export const generateBrowserIife = async (input: string, name: string): Promise<string> => {
+  return generateIife(input, name, [nodeResolve({ browser: true }), typescriptTranspilePlugin()])
 }

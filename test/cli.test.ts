@@ -8,7 +8,7 @@ test('uses the full benchmark defaults', () => {
   assert.equal(options.iterations, 20)
   assert.equal(options.warmups, 1)
   assert.equal(options.profile, true)
-  assert.deepEqual(options.editors, ['lvce-editor-minimal', 'lvce-editor-single-thread', 'monaco-editor', 'codemirror', 'ace-editor'])
+  assert.deepEqual(options.editors, ['lvce-editor-minimal', 'lvce-editor-single-thread', 'monaco-editor', 'codemirror', 'codemirror5', 'codejar-prism', 'ace-editor'])
 })
 
 test('parses benchmark overrides', () => {
@@ -16,7 +16,7 @@ test('parses benchmark overrides', () => {
     '--characters',
     '200',
     '--editors',
-    'monaco-editor,codemirror,ace-editor',
+    'monaco-editor,codemirror,codemirror5,codejar-prism,ace-editor',
     '--iterations',
     '3',
     '--warmups',
@@ -27,7 +27,7 @@ test('parses benchmark overrides', () => {
   assert.equal(options.iterations, 3)
   assert.equal(options.warmups, 0)
   assert.equal(options.profile, false)
-  assert.deepEqual(options.editors, ['monaco-editor', 'codemirror', 'ace-editor'])
+  assert.deepEqual(options.editors, ['monaco-editor', 'codemirror', 'codemirror5', 'codejar-prism', 'ace-editor'])
 })
 
 test('rejects unknown editors', () => {

@@ -26,10 +26,9 @@ export const startCpuTrace = async (cdp: CDPSession): Promise<void> => {
 }
 
 export const stopTrace = async (cdp: CDPSession): Promise<string> => {
-  const tracingComplete = new Promise<string>((resolvePromise) => {
-    cdp.once('Tracing.tracingComplete', (event: { readonly stream?: string }) => {
-      resolvePromise(event.stream || '')
-    })
+  const { promise: tracingComplete, resolve: resolvePromise } = Promise.withResolvers<string>()
+  cdp.once('Tracing.tracingComplete', (event: { readonly stream?: string }) => {
+    resolvePromise(event.stream || '')
   })
   await cdp.send('Tracing.end')
   const stream = await tracingComplete

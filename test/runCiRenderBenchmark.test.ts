@@ -5,7 +5,7 @@ import { getCiRenderBenchmarkArgs } from '../src/runCiRenderBenchmark.ts'
 test('builds full render benchmark CI arguments by default', () => {
   assert.deepEqual(getCiRenderBenchmarkArgs({}), [
     '--editors',
-    'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,ace-editor',
+    'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,codemirror5,codejar-prism,ace-editor',
     '--iterations',
     '20',
     '--warmups',

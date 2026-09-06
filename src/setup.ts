@@ -49,13 +49,11 @@ const getLvceAssetDirectory = async (): Promise<string> => {
 
 const bundleMinimalLvceEditor = async (outputRoot: string): Promise<void> => {
   const output = join(outputRoot, 'lvce-editor-minimal')
-  const rendererProcessRoot = join(root, 'node_modules', '@lvce-editor', 'renderer-process', 'dist')
   const editorWorkerRoot = join(root, 'node_modules', '@lvce-editor', 'editor-worker', 'dist')
   const syntaxHighlightingWorkerRoot = join(root, 'node_modules', '@lvce-editor', 'syntax-highlighting-worker', 'dist')
   const lvceAssetDirectory = await getLvceAssetDirectory()
   await mkdir(output, { recursive: true })
-  await cp(join(rendererProcessRoot, 'editorOnly.css'), join(output, 'index.css'))
-  await bundleJavaScriptFile(join(rendererProcessRoot, 'editorOnlyRendererProcessMain.js'), join(output, 'index.js'))
+  await bundleBrowserFixture(join(root, 'fixtures', 'lvce', 'index.ts'), join(output, 'index.js'))
   await bundleJavaScriptFile(join(editorWorkerRoot, 'editorWorkerMain.js'), join(output, 'editorWorkerMain.js'))
   await bundleJavaScriptFile(
     join(syntaxHighlightingWorkerRoot, 'syntaxHighlightingWorkerMain.js'),
@@ -95,10 +93,9 @@ const bundleMinimalLvceEditor = async (outputRoot: string): Promise<void> => {
 
 const bundleSingleThreadLvceEditor = async (outputRoot: string): Promise<void> => {
   const output = join(outputRoot, 'lvce-editor-single-thread')
-  const rendererProcessRoot = join(root, 'node_modules', '@lvce-editor', 'renderer-process', 'dist')
   const lvceAssetDirectory = await getLvceAssetDirectory()
   await mkdir(output, { recursive: true })
-  await cp(join(rendererProcessRoot, 'editorOnly.css'), join(output, 'index.css'))
+  await cp(join(root, 'fixtures', 'lvce', 'index.css'), join(output, 'index.css'))
   await bundleSingleThreadLvce(getSingleThreadLvceBundlePaths(root, lvceAssetDirectory, output))
   const config = {
     editorOnly: {
@@ -163,8 +160,8 @@ const bundleVscode = async (outputRoot: string): Promise<void> => {
 }
 
 const bundleEditor = async (
-  id: 'monaco-editor' | 'codemirror' | 'ace-editor',
-  sourceDirectory: 'monaco' | 'codemirror' | 'ace',
+  id: 'monaco-editor' | 'codemirror' | 'codemirror5' | 'codejar-prism' | 'ace-editor',
+  sourceDirectory: string,
   outputRoot: string,
 ): Promise<void> => {
   const output = join(outputRoot, id)
@@ -181,6 +178,8 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
 
   await bundleEditor('monaco-editor', 'monaco', resolvedOutput)
   await bundleEditor('codemirror', 'codemirror', resolvedOutput)
+  await bundleEditor('codemirror5', 'codemirror5', resolvedOutput)
+  await bundleEditor('codejar-prism', 'codejar-prism', resolvedOutput)
   await bundleEditor('ace-editor', 'ace', resolvedOutput)
   await bundleMinimalLvceEditor(resolvedOutput)
   await bundleSingleThreadLvceEditor(resolvedOutput)
@@ -192,14 +191,14 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
     {
       id: 'lvce-editor-minimal',
       label: editorLabels['lvce-editor-minimal'],
-      version: await readPackageVersion('@lvce-editor/renderer-process'),
+      version: await readPackageVersion('@lvce-editor/editor-worker'),
       kind: 'static',
       path: 'lvce-editor-minimal/',
     },
     {
       id: 'lvce-editor-single-thread',
       label: editorLabels['lvce-editor-single-thread'],
-      version: await readPackageVersion('@lvce-editor/renderer-process'),
+      version: await readPackageVersion('@lvce-editor/editor-worker'),
       kind: 'static',
       path: 'lvce-editor-single-thread/',
     },
@@ -216,6 +215,20 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
       version: await readPackageVersion('codemirror'),
       kind: 'static',
       path: 'codemirror/',
+    },
+    {
+      id: 'codemirror5',
+      label: editorLabels.codemirror5,
+      version: await readPackageVersion('codemirror5'),
+      kind: 'static',
+      path: 'codemirror5/',
+    },
+    {
+      id: 'codejar-prism',
+      label: editorLabels['codejar-prism'],
+      version: `${await readPackageVersion('codejar')} + Prism ${await readPackageVersion('prismjs')}`,
+      kind: 'static',
+      path: 'codejar-prism/',
     },
     {
       id: 'ace-editor',

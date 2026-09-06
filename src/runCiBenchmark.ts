@@ -1,4 +1,5 @@
 import { pathToFileURL } from 'node:url'
+import { editorIds } from './editors.ts'
 import { runCli } from './main.ts'
 
 const getBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -10,7 +11,7 @@ export const getCiBenchmarkArgs = (environment: NodeJS.ProcessEnv): readonly str
     '--characters',
     environment.CHARACTERS?.trim() || '500',
     '--editors',
-    environment.EDITORS?.trim() || 'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,ace-editor',
+    environment.EDITORS?.trim() || editorIds.join(','),
     '--iterations',
     environment.ITERATIONS?.trim() || '20',
     '--warmups',

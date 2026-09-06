@@ -1,4 +1,5 @@
 import { pathToFileURL } from 'node:url'
+import { editorIds } from './editors.ts'
 import { runRenderCli } from './renderMain.ts'
 
 const getBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -8,7 +9,7 @@ const getBoolean = (value: string | undefined, fallback: boolean): boolean => {
 export const getCiRenderBenchmarkArgs = (environment: NodeJS.ProcessEnv): readonly string[] => {
   const args = [
     '--editors',
-    environment.EDITORS?.trim() || 'lvce-editor-minimal,lvce-editor-single-thread,monaco-editor,codemirror,ace-editor',
+    environment.EDITORS?.trim() || editorIds.join(','),
     '--iterations',
     environment.ITERATIONS?.trim() || '20',
     '--warmups',

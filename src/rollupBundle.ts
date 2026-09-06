@@ -1,8 +1,11 @@
+import commonjsPlugin, { type RollupCommonJSOptions } from '@rollup/plugin-commonjs'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
 import terserPlugin, { type Options as TerserOptions } from '@rollup/plugin-terser'
 import { rollup, type OutputChunk, type Plugin } from 'rollup'
 import css from 'rollup-plugin-css-only'
 import ts from 'typescript'
+
+const createCommonjsPlugin = commonjsPlugin as unknown as (options?: RollupCommonJSOptions) => Plugin
 
 const createTerserPlugin = terserPlugin as unknown as (options?: TerserOptions) => Plugin
 
@@ -63,6 +66,7 @@ const writeBundle = async (input: string, outputPath: string, plugins: readonly 
 export const bundleBrowserFixture = async (input: string, outputPath: string): Promise<void> => {
   await writeBundle(input, outputPath, [
     nodeResolve({ browser: true }),
+    createCommonjsPlugin(),
     typescriptTranspilePlugin(),
     css({ fileName: 'index.css' }),
   ])

@@ -19,6 +19,7 @@
     "report:startup": "node src/startupReportCli.ts",
     "setup": "node src/setup.ts",
     "test": "node --test \"test/**/*.test.ts\"",
+    "test:fixtures": "node --test browser-test/*.test.ts",
     "type-check": "tsc --noEmit"
   },
   "engines": {
@@ -28,20 +29,27 @@
     "@codemirror/lang-html": "6.4.12",
     "@github1s/vscode-web": "0.30.2",
     "@lvce-editor/editor-worker": "19.59.0",
+    "@lvce-editor/renderer-process": "30.51.0",
     "@lvce-editor/rpc": "6.19.3",
     "@lvce-editor/server": "0.113.12",
     "@lvce-editor/static-server": "0.113.12",
     "@lvce-editor/syntax-highlighting-worker": "2.5.1",
     "@lvce-editor/virtual-dom": "11.17.0",
+    "codejar": "4.3.0",
     "codemirror": "6.0.2",
-    "monaco-editor": "0.56.0"
+    "codemirror5": "npm:codemirror@5.65.21",
+    "monaco-editor": "0.56.0",
+    "prismjs": "1.30.0"
   },
   "devDependencies": {
     "@lvce-editor/eslint-config": "^18.9.0",
+    "@rollup/plugin-commonjs": "29.0.3",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
+    "@types/codemirror5": "npm:@types/codemirror@5.60.18",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^24.13.3",
+    "@types/prismjs": "1.26.6",
     "eslint": "^10.10.0",
     "jsdom": "^26.1.0",
     "playwright": "^1.63.0",

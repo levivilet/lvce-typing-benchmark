@@ -159,7 +159,11 @@ const bundleVscode = async (outputRoot: string): Promise<void> => {
   await writeFile(join(output, 'index.html'), html)
 }
 
-const bundleEditor = async (id: 'monaco-editor' | 'codemirror', sourceDirectory: 'monaco' | 'codemirror', outputRoot: string): Promise<void> => {
+const bundleEditor = async (
+  id: 'monaco-editor' | 'codemirror' | 'codemirror5' | 'codejar-prism',
+  sourceDirectory: string,
+  outputRoot: string,
+): Promise<void> => {
   const output = join(outputRoot, id)
   await mkdir(output, { recursive: true })
   await bundleBrowserFixture(join(root, 'fixtures', sourceDirectory, 'index.ts'), join(output, 'index.js'))
@@ -174,6 +178,8 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
 
   await bundleEditor('monaco-editor', 'monaco', resolvedOutput)
   await bundleEditor('codemirror', 'codemirror', resolvedOutput)
+  await bundleEditor('codemirror5', 'codemirror5', resolvedOutput)
+  await bundleEditor('codejar-prism', 'codejar-prism', resolvedOutput)
   await bundleMinimalLvceEditor(resolvedOutput)
   await bundleSingleThreadLvceEditor(resolvedOutput)
   await bundleVscode(resolvedOutput)
@@ -208,6 +214,20 @@ export const setupFixtures = async (output = defaultOutput): Promise<FixtureMani
       version: await readPackageVersion('codemirror'),
       kind: 'static',
       path: 'codemirror/',
+    },
+    {
+      id: 'codemirror5',
+      label: editorLabels.codemirror5,
+      version: await readPackageVersion('codemirror5'),
+      kind: 'static',
+      path: 'codemirror5/',
+    },
+    {
+      id: 'codejar-prism',
+      label: editorLabels['codejar-prism'],
+      version: `${await readPackageVersion('codejar')} + Prism ${await readPackageVersion('prismjs')}`,
+      kind: 'static',
+      path: 'codejar-prism/',
     },
   ]
   const ides = [

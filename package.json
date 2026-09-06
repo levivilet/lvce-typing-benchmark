@@ -44,6 +44,6 @@
     "playwright": "^1.63.0",
     "rollup": "^4.63.1",
     "rollup-plugin-css-only": "^4.5.5",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   }
 }

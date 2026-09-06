@@ -60,7 +60,8 @@ for (const rendering of [false, true]) {
           if (a.left < bounds.left || a.right > bounds.right || a.bottom > bounds.bottom) {
             issues.push(`Clipped: ${label.textContent}`)
           }
-          for (const other of labels.slice(index + 1)) {
+          const remainingLabels = labels.slice(index + 1)
+          for (const other of remainingLabels) {
             const b = other.getBoundingClientRect()
             if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) {
               issues.push(`Overlap: ${label.textContent} / ${other.textContent}`)

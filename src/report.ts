@@ -1,5 +1,6 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { wrapChartLabel } from './chartLabels.ts'
 import { writeCpuBreakdownReport } from './cpuBreakdownReport.ts'
 import type { BenchmarkSummary, CpuBreakdown, EditorSummary, Stats } from './types.ts'
 
@@ -46,20 +47,25 @@ const formatNumber = (value: number | null): string => {
 
 const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string => {
   const width = 1_200
-  const height = 460
   const left = 124
   const right = 30
   const top = 62
-  const bottom = 96
   const chartWidth = width - left - right
-  const chartHeight = height - top - bottom
+  const groupWidth = chartWidth / Math.max(1, summary.editors.length)
+  const labels = summary.editors.map((editor) => ({
+    name: wrapChartLabel(editor.label, groupWidth, 9),
+    version: wrapChartLabel(`v${editor.version}`, groupWidth, 8),
+  }))
+  const labelRows = Math.max(2, ...labels.map((label) => label.name.length + label.version.length))
+  const bottom = 52 + labelRows * 22
+  const chartHeight = 302
+  const height = top + chartHeight + bottom
   const values = summary.editors.flatMap((editor) => {
     const stats = chart.getStats(editor)
     return [stats.mean, stats.min].filter((value): value is number => value !== null)
   })
   const max = Math.max(1, ...values) * 1.12
   const toY = (value: number): number => top + chartHeight - (value / max) * chartHeight
-  const groupWidth = chartWidth / Math.max(1, summary.editors.length)
   const barWidth = Math.min(72, groupWidth * 0.28)
   const grid = Array.from({ length: 5 }, (_, index) => {
     const value = (max * index) / 4
@@ -85,9 +91,13 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
 <text class="value" x="${x + barWidth / 2}" y="${Math.max(top + 14, y - 8)}" text-anchor="middle">${formatNumber(value)}</text>`
         })
         .join('\n')
+      const label = labels[index]!
+      const renderLines = (lines: readonly string[], row: number): string => lines
+        .map((line, lineIndex) => `<tspan x="${center}" y="${height - bottom + 30 + (row + lineIndex) * 22}">${escapeHtml(line)}</tspan>`)
+        .join(' ')
       return `${bars}
-<text class="editor-label" x="${center}" y="${height - bottom + 30}" text-anchor="middle">${escapeHtml(editor.label)}</text>
-<text class="version-label" x="${center}" y="${height - bottom + 52}" text-anchor="middle">v${escapeHtml(editor.version)}</text>`
+<text class="editor-label" text-anchor="middle">${renderLines(label.name, 0)}</text>
+<text class="version-label" text-anchor="middle">${renderLines(label.version, label.name.length)}</text>`
     })
     .join('\n')
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title description">

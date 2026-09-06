@@ -13,39 +13,41 @@ const root = resolve(import.meta.dirname, '..')
 
 const getFreePort = async (): Promise<number> => {
   const server = createServer()
-  await new Promise<void>((resolvePromise, reject) => {
-    server.once('error', reject)
-    server.listen(0, 'localhost', () => resolvePromise())
-  })
+  const { promise: listening, resolve: resolveListening, reject: rejectListening } = Promise.withResolvers<void>()
+  server.once('error', rejectListening)
+  server.listen(0, 'localhost', () => resolveListening())
+  await listening
   const address = server.address()
   if (!address || typeof address === 'string') {
     server.close()
     throw new Error('Could not allocate a TCP port')
   }
   const { port } = address
-  await new Promise<void>((resolvePromise, reject) => {
-    server.close((error) => (error ? reject(error) : resolvePromise()))
-  })
+  const { promise: closed, resolve: resolveClosed, reject: rejectClosed } = Promise.withResolvers<void>()
+  server.close((error) => (error ? rejectClosed(error) : resolveClosed()))
+  await closed
   return port
 }
 
 const canConnect = async (url: string): Promise<boolean> => {
-  return new Promise((resolvePromise) => {
-    const outgoing = request(url, { method: 'GET', timeout: 1_000 }, (response) => {
-      response.resume()
-      resolvePromise(Boolean(response.statusCode && response.statusCode < 500))
-    })
-    outgoing.on('error', () => resolvePromise(false))
-    outgoing.on('timeout', () => {
-      outgoing.destroy()
-      resolvePromise(false)
-    })
-    outgoing.end()
+  const { promise, resolve: resolvePromise } = Promise.withResolvers<boolean>()
+  const outgoing = request(url, { method: 'GET', timeout: 1_000 }, (response) => {
+    response.resume()
+    resolvePromise(Boolean(response.statusCode && response.statusCode < 500))
   })
+  outgoing.on('error', () => resolvePromise(false))
+  outgoing.on('timeout', () => {
+    outgoing.destroy()
+    resolvePromise(false)
+  })
+  outgoing.end()
+  return promise
 }
 
 const wait = async (milliseconds: number): Promise<void> => {
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds))
+  const { promise, resolve: resolvePromise } = Promise.withResolvers<void>()
+  setTimeout(resolvePromise, milliseconds)
+  await promise
 }
 
 export const startLvceServer = async (workspace: string, timeout: number): Promise<RunningLvceServer> => {
@@ -90,10 +92,9 @@ export const startLvceServer = async (workspace: string, timeout: number): Promi
             } else if (child.pid) {
               process.kill(-child.pid, 'SIGTERM')
             }
-            await Promise.race([
-              new Promise<void>((resolvePromise) => child.once('exit', () => resolvePromise())),
-              wait(2_000),
-            ])
+            const { promise: exited, resolve: resolveExited } = Promise.withResolvers<void>()
+            child.once('exit', () => resolveExited())
+            await Promise.race([exited, wait(2_000)])
             if (child.exitCode === null && child.pid && process.platform !== 'win32') {
               process.kill(-child.pid, 'SIGKILL')
             }

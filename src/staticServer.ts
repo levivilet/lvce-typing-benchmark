@@ -22,9 +22,9 @@ const contentTypes: Readonly<Record<string, string>> = {
 }
 
 const closeServer = async (server: Server): Promise<void> => {
-  await new Promise<void>((resolvePromise, reject) => {
-    server.close((error) => (error ? reject(error) : resolvePromise()))
-  })
+  const { promise, resolve: resolvePromise, reject } = Promise.withResolvers<void>()
+  server.close((error) => (error ? reject(error) : resolvePromise()))
+  await promise
 }
 
 export const startStaticServer = async (directory: string): Promise<RunningStaticServer> => {
@@ -60,13 +60,13 @@ export const startStaticServer = async (directory: string): Promise<RunningStati
   const server = createServer((request, response) => {
     void handleRequest(request, response)
   })
-  await new Promise<void>((resolvePromise, reject) => {
-    server.once('error', reject)
-    server.listen(0, 'localhost', () => {
-      server.off('error', reject)
-      resolvePromise()
-    })
+  const { promise, resolve: resolvePromise, reject } = Promise.withResolvers<void>()
+  server.once('error', reject)
+  server.listen(0, 'localhost', () => {
+    server.off('error', reject)
+    resolvePromise()
   })
+  await promise
   const address = server.address()
   if (!address || typeof address === 'string') {
     await closeServer(server)

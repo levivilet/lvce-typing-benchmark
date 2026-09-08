@@ -107,8 +107,12 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
           }
           const y = toY(value)
           const barHeight = top + chartHeight - y
+          // Separate nearby values vertically so labels wider than their bars remain readable.
+          const labelY = className === 'average' && stats.min !== null
+            ? Math.min(y - 8, toY(stats.min) - 30)
+            : y - 8
           return `<rect class="${className}" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="5" />
-<text class="value" x="${x + barWidth / 2}" y="${Math.max(top + 14, y - 8)}" text-anchor="middle">${formatNumber(value)}</text>`
+<text class="value" x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle">${formatNumber(value)}</text>`
         })
         .join('\n')
       const label = labels[index]!

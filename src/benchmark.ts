@@ -211,7 +211,8 @@ export const runBenchmark = async (options: BenchmarkOptions): Promise<Benchmark
       }
       const lagResult = await runTypingLag(browser, fixture, staticServer.url, options, output)
       lagResults.push(lagResult)
-      console.info(`${fixture.label} typing lag: ${lagResult.success ? `${lagResult.samplesMs.length} samples` : lagResult.error}`)
+      const lagStatus = lagResult.success ? `${lagResult.samplesMs.length} samples` : lagResult.error
+      console.info(`${fixture.label} typing lag: ${lagStatus}`)
     }
   } finally {
     await browser?.close().catch(() => undefined)
@@ -225,15 +226,20 @@ export const runBenchmark = async (options: BenchmarkOptions): Promise<Benchmark
   await writeFile(join(output, 'iterations.json'), `${JSON.stringify(results, undefined, 2)}\n`)
   await writeFile(join(output, 'typing-lag.json'), `${JSON.stringify(lagResults, undefined, 2)}\n`)
   const summary = await analyzeResults(output, fixtures, options.characters)
+  assertSuccessfulResults(results, lagResults)
+  console.info(`Wrote benchmark results to ${relative(process.cwd(), output) || output}`)
+  return summary
+}
+
+const assertSuccessfulResults = (results: readonly IterationResult[], lagResults: readonly TypingLagResult[]): void => {
   const failures = results.filter((result) => !result.warmup && !result.success)
   const lagFailures = lagResults.filter((result) => !result.success)
   if (lagFailures.length > 0) {
-    throw new Error(`Typing-lag measurement failed:\n${lagFailures.map((result) => `${result.editor}: ${result.error}`).join('\n')}`)
+    const details = lagFailures.map((result) => `${result.editor}: ${result.error}`).join('\n')
+    throw new Error(`Typing-lag measurement failed:\n${details}`)
   }
   if (failures.length > 0) {
     const details = failures.map((failure) => `${failure.editor} #${failure.iteration}: ${failure.error || 'unknown error'}`).join('\n')
     throw new Error(`${failures.length} measured benchmark iteration(s) failed:\n${details}`)
   }
-  console.info(`Wrote benchmark results to ${relative(process.cwd(), output) || output}`)
-  return summary
 }

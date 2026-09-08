@@ -40,7 +40,7 @@ export const armTypingLagSample = async (page: Page, editor: EditorId, sample: n
       if (!started || rendered) {
         return
       }
-      const text = [...document.querySelectorAll(selector)].map((line) => line.textContent || '').join('')
+      const text = Array.from(document.querySelectorAll(selector), (line) => line.textContent || '').join('')
       if (text !== 'a'.repeat(sample)) {
         return
       }
@@ -62,16 +62,16 @@ export const armTypingLagSample = async (page: Page, editor: EditorId, sample: n
       }
       started = true
       performance.mark(`${prefix}:keydown`, { startTime: event.timeStamp })
-      window.removeEventListener('keydown', onKeyDown, true)
+      globalThis.removeEventListener('keydown', onKeyDown, true)
     }
     const timer = setTimeout(() => {
       observer.disconnect()
-      window.removeEventListener('keydown', onKeyDown, true)
+      globalThis.removeEventListener('keydown', onKeyDown, true)
       cancelAnimationFrame(frame)
       document.documentElement.dataset.typingLagSettled = 'timeout'
     }, timeout)
     observer.observe(document.body, { childList: true, characterData: true, subtree: true })
-    window.addEventListener('keydown', onKeyDown, true)
+    globalThis.addEventListener('keydown', onKeyDown, { capture: true })
   }, { selector: renderedTextSelectors[editor], sample, timeout })
 }
 
@@ -114,9 +114,10 @@ export const getTypingLagSamples = ({ traceEvents }: TraceProfile, count: number
 export const summarizeTypingLag = (result: TypingLagResult): TypingLagSummary => {
   const values = result.success ? result.samplesMs.toSorted((a, b) => a - b) : []
   const middle = Math.floor(values.length / 2)
-  const median = values.length === 0 ? null : values.length % 2 === 0
-    ? (values[middle - 1]! + values[middle]!) / 2
-    : values[middle]!
+  let median: number | null = null
+  if (values.length > 0) {
+    median = values.length % 2 === 0 ? (values[middle - 1]! + values[middle]!) / 2 : values[middle]!
+  }
   return {
     samples: values.length,
     requestedSamples: result.requestedSamples,

@@ -160,7 +160,7 @@ const renderRows = (summary: BenchmarkSummary): string => {
 }
 
 const renderLagResults = (summary: BenchmarkSummary): string => {
-  if (!summary.editors.some((editor) => editor.typingLag)) {
+  if (summary.editors.every((editor) => !editor.typingLag)) {
     return ''
   }
   const rows = summary.editors.map((editor) => {

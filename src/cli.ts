@@ -47,10 +47,6 @@ export const parseArgs = (argv: readonly string[]): BenchmarkOptions => {
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index]
     switch (argument) {
-      case '--lag-samples':
-        options = { ...options, lagSamples: parseInteger(takeValue(argv, index, argument), argument, 1) }
-        index++
-        break
       case '--characters':
         options = { ...options, characters: parseInteger(takeValue(argv, index, argument), argument, 1) }
         index++
@@ -64,6 +60,10 @@ export const parseArgs = (argv: readonly string[]): BenchmarkOptions => {
         break
       case '--iterations':
         options = { ...options, iterations: parseInteger(takeValue(argv, index, argument), argument, 1) }
+        index++
+        break
+      case '--lag-samples':
+        options = { ...options, lagSamples: parseInteger(takeValue(argv, index, argument), argument, 1) }
         index++
         break
       case '--no-profile':

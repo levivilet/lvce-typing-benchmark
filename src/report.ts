@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { wrapChartLabel } from './chartLabels.ts'
 import { writeCpuBreakdownReport } from './cpuBreakdownReport.ts'
+import { typingLagCadence } from './typingLag.ts'
 import type { BenchmarkSummary, CpuBreakdown, EditorSummary } from './types.ts'
 
 interface ReportOptions {
@@ -171,16 +172,17 @@ const renderLagResults = (summary: BenchmarkSummary): string => {
     const lag = editor.typingLag
     const stats = lag?.durationMs
     return `<tr><th scope="row">${escapeHtml(editor.label)}</th>
+      <td>${lag?.cadence === typingLagCadence ? '16–65 ms varied' : 'Immediate (legacy)'}</td>
       <td>${lag?.samples ?? 0} / ${lag?.requestedSamples ?? 0}</td><td>${lag?.failures ?? 0}</td>
       ${[stats?.min, stats?.mean, stats?.median, stats?.p95, stats?.max].map((value) => `<td>${formatNumber(value ?? null)} ms</td>`).join('')}
     </tr>`
   }).join('\n')
   return `<section class="card">
     <h2>Typing lag results</h2>
-    <p class="description">Each editor starts with a fresh, loaded empty document. One character is typed at a time, waiting for its text DOM update and paint before the next key. Samples include the first keystroke; no latency warmup is discarded.</p>
-    <p class="description">The metric runs from the trusted keydown event timestamp to completion of the first Chromium paint lifecycle containing a main-frame Paint after the character reaches the text DOM. Trace collection is enabled without CPU sampling. This measures browser paint work, excluding later GPU rasterization, compositing, and physical display latency. Frame scheduling and instrumentation affect the results.</p>
+    <p class="description">Each editor starts with a fresh, loaded empty document. One character is typed at a time, waiting for its text DOM update and paint before the next key. Samples include the first keystroke; no latency warmup is discarded. The cadence column identifies the pause before each key: current runs use the same reproducible sequence of 16–65 ms pauses for every editor, outside the measured interval. This avoids synchronizing inputs to the refresh cycle. Legacy immediate-dispatch results are biased toward a particular refresh phase and are not directly comparable.</p>
+    <p class="description">The metric runs from the trusted keydown event timestamp to completion of the first Chromium paint lifecycle containing a main-frame Paint after the character reaches the text DOM. Trace collection is enabled without CPU sampling. This measures browser paint work, excluding later GPU rasterization, compositing, and physical display latency. Frame scheduling and instrumentation affect the results. The number includes waiting for the browser to schedule a paint; it is not pure editor execution time. Small differences between editors may reflect scheduling or tracing overhead.</p>
     <p class="description">Missing text updates or paint evidence fail the pass; failed passes show n/a. <a href="./typing-lag.json">Download individual samples</a>.</p>
-    <table><thead><tr><th>Editor</th><th>Samples / requested</th><th>Failed passes</th><th>Fastest</th><th>Average</th><th>Median</th><th>p95</th><th>Slowest</th></tr></thead>
+    <table><thead><tr><th>Editor</th><th>Cadence</th><th>Samples / requested</th><th>Failed passes</th><th>Fastest</th><th>Average</th><th>Median</th><th>p95</th><th>Slowest</th></tr></thead>
     <tbody>${rows}</tbody></table>
   </section>`
 }

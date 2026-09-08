@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getTypingLagSamples, summarizeTypingLag } from '../src/typingLag.ts'
+import { getTypingLagPauseMs, getTypingLagSamples, summarizeTypingLag, typingLagCadence } from '../src/typingLag.ts'
 import type { TraceEvent } from '../src/types.ts'
 
 const mark = (name: string, ts: number): TraceEvent => ({ name: `typing-lag:1:${name}`, ts, pid: 1, tid: 2 })
@@ -44,4 +44,13 @@ test('aggregates individual samples with even and odd medians, and excludes fail
     samples: 0, requestedSamples: 4, failures: 1,
     durationMs: { min: null, mean: null, median: null, max: null, p95: null },
   })
+})
+
+
+test('uses repeatable pauses of at least 16 ms spanning several refresh intervals', () => {
+  const pauses = Array.from({ length: 100 }, (_, index) => getTypingLagPauseMs(index + 1))
+  assert.ok(pauses.every((pause) => Number.isSafeInteger(pause) && pause >= 16 && pause <= 65))
+  assert.ok(new Set(pauses).size >= 40)
+  assert.deepEqual(pauses, Array.from({ length: 100 }, (_, index) => getTypingLagPauseMs(index + 1)))
+  assert.equal(summarizeTypingLag({ editor: 'codemirror', cadence: typingLagCadence, requestedSamples: 1, samplesMs: [3], success: true, tracePath: 'trace.json' }).cadence, typingLagCadence)
 })

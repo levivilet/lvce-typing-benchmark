@@ -9,6 +9,8 @@ and VS Code, under repeatable Chromium/Playwright workloads.
 
 Node.js 24.15 or newer in the 24.x release line, or Node.js 26 or newer, is required.
 
+To use the same Node.js version as CI, run `nvm install` and `nvm use`.
+
 ```sh
 npm ci
 npx playwright install chromium

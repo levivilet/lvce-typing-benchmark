@@ -3,9 +3,10 @@ import { join, relative, resolve } from 'node:path'
 import { chromium, type Browser, type CDPSession, type Page } from 'playwright'
 import { analyzeResults } from './analyze.ts'
 import { startCpuTrace, stopCpuTrace } from './cpuTrace.ts'
+import { armTypingLagSample, getTypingLagSamples, type TypingLagResult } from './typingLag.ts'
 import { getEditorFixture } from './editors.ts'
 import { startStaticServer } from './staticServer.ts'
-import type { BenchmarkMetadata, BenchmarkOptions, BenchmarkSummary, EditorFixture, FixtureManifest, IterationResult } from './types.ts'
+import type { BenchmarkMetadata, BenchmarkOptions, BenchmarkSummary, EditorFixture, FixtureManifest, IterationResult, TraceProfile } from './types.ts'
 
 const getTextLength = async (page: Page): Promise<number> => {
   return page.evaluate(() => {
@@ -117,6 +118,59 @@ const runIteration = async (
   }
 }
 
+const runTypingLag = async (
+  browser: Browser,
+  fixture: EditorFixture,
+  staticUrl: string,
+  options: BenchmarkOptions,
+  output: string,
+): Promise<TypingLagResult> => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } })
+  const tracePath = `profiles/${fixture.id}-typing-lag.json`
+  let cdp: CDPSession | undefined
+  let tracing = false
+  try {
+    const page = await context.newPage()
+    await prepareEditor(page, fixture, staticUrl, options.timeout)
+    cdp = await context.newCDPSession(page)
+    const { frameTree } = await cdp.send('Page.getFrameTree')
+    await cdp.send('Tracing.start', {
+      categories: 'devtools.timeline,blink,blink.user_timing',
+      transferMode: 'ReturnAsStream',
+    })
+    tracing = true
+    for (let sample = 1; sample <= options.lagSamples; sample++) {
+      await armTypingLagSample(page, fixture.id, sample, options.timeout)
+      await page.keyboard.press('a')
+      await page.waitForFunction(() => Boolean(document.documentElement.dataset.typingLagSettled), undefined, { timeout: options.timeout })
+      const settled = await page.evaluate(() => document.documentElement.dataset.typingLagSettled)
+      if (settled !== String(sample)) {
+        throw new Error(`Timed out waiting for character ${sample} to render`)
+      }
+    }
+    await stopCpuTrace(cdp, join(output, tracePath))
+    tracing = false
+    const trace = JSON.parse(await readFile(join(output, tracePath), 'utf8')) as TraceProfile
+    const samplesMs = getTypingLagSamples(trace, options.lagSamples, frameTree.frame.id)
+    return { editor: fixture.id, requestedSamples: options.lagSamples, samplesMs, success: true, tracePath }
+  } catch (error) {
+    if (cdp && tracing) {
+      await stopCpuTrace(cdp, join(output, tracePath)).catch(() => undefined)
+    }
+    return {
+      editor: fixture.id,
+      requestedSamples: options.lagSamples,
+      samplesMs: [],
+      success: false,
+      tracePath,
+      error: error instanceof Error ? error.stack || error.message : String(error),
+    }
+  } finally {
+    await cdp?.detach().catch(() => undefined)
+    await context.close().catch(() => undefined)
+  }
+}
+
 const readManifest = async (staticDirectory: string): Promise<FixtureManifest> => {
   return JSON.parse(await readFile(join(staticDirectory, 'manifest.json'), 'utf8')) as FixtureManifest
 }
@@ -131,6 +185,7 @@ export const runBenchmark = async (options: BenchmarkOptions): Promise<Benchmark
   const staticServer = await startStaticServer(staticDirectory)
   let browser: Browser | undefined
   const results: IterationResult[] = []
+  const lagResults: TypingLagResult[] = []
   try {
     browser = await chromium.launch({
       headless: !options.headed,
@@ -154,6 +209,10 @@ export const runBenchmark = async (options: BenchmarkOptions): Promise<Benchmark
         const status = result.success ? `${result.typingDurationMs.toFixed(2)} ms` : 'failed'
         console.info(`${fixture.label} ${warmup ? 'warmup' : 'iteration'} ${iteration}: ${status}`)
       }
+      const lagResult = await runTypingLag(browser, fixture, staticServer.url, options, output)
+      lagResults.push(lagResult)
+      const lagStatus = lagResult.success ? `${lagResult.samplesMs.length} samples` : lagResult.error
+      console.info(`${fixture.label} typing lag: ${lagStatus}`)
     }
   } finally {
     await browser?.close().catch(() => undefined)
@@ -165,12 +224,22 @@ export const runBenchmark = async (options: BenchmarkOptions): Promise<Benchmark
   }
   await writeFile(join(output, 'benchmark.json'), `${JSON.stringify(metadata, undefined, 2)}\n`)
   await writeFile(join(output, 'iterations.json'), `${JSON.stringify(results, undefined, 2)}\n`)
+  await writeFile(join(output, 'typing-lag.json'), `${JSON.stringify(lagResults, undefined, 2)}\n`)
   const summary = await analyzeResults(output, fixtures, options.characters)
+  assertSuccessfulResults(results, lagResults)
+  console.info(`Wrote benchmark results to ${relative(process.cwd(), output) || output}`)
+  return summary
+}
+
+const assertSuccessfulResults = (results: readonly IterationResult[], lagResults: readonly TypingLagResult[]): void => {
   const failures = results.filter((result) => !result.warmup && !result.success)
+  const lagFailures = lagResults.filter((result) => !result.success)
+  if (lagFailures.length > 0) {
+    const details = lagFailures.map((result) => `${result.editor}: ${result.error}`).join('\n')
+    throw new Error(`Typing-lag measurement failed:\n${details}`)
+  }
   if (failures.length > 0) {
     const details = failures.map((failure) => `${failure.editor} #${failure.iteration}: ${failure.error || 'unknown error'}`).join('\n')
     throw new Error(`${failures.length} measured benchmark iteration(s) failed:\n${details}`)
   }
-  console.info(`Wrote benchmark results to ${relative(process.cwd(), output) || output}`)
-  return summary
 }

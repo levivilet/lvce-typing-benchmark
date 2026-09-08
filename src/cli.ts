@@ -4,6 +4,7 @@ import type { BenchmarkOptions, EditorId } from './types.ts'
 
 const defaults: BenchmarkOptions = {
   characters: 500,
+  lagSamples: 100,
   editors: editorIds,
   headed: false,
   iterations: 20,
@@ -61,6 +62,10 @@ export const parseArgs = (argv: readonly string[]): BenchmarkOptions => {
         options = { ...options, iterations: parseInteger(takeValue(argv, index, argument), argument, 1) }
         index++
         break
+      case '--lag-samples':
+        options = { ...options, lagSamples: parseInteger(takeValue(argv, index, argument), argument, 1) }
+        index++
+        break
       case '--no-profile':
         options = { ...options, profile: false }
         break
@@ -93,6 +98,7 @@ export const parseArgs = (argv: readonly string[]): BenchmarkOptions => {
 export const getHelpText = (): string => `Usage: npm run benchmark -- [options]
 
 Options:
+  --lag-samples <n>   Sequential typing-lag samples per editor (default: 100)
   --characters <n>    Characters typed per iteration (default: 500)
   --editors <csv>     Editors to benchmark (default: all)
   --iterations <n>    Measured iterations per editor (default: 20)

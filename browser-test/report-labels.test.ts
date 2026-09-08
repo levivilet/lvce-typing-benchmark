@@ -22,6 +22,7 @@ for (const rendering of [false, true]) {
       failures: 0,
       characters: 500,
       typingDurationMs: stats,
+      typingLag: { samples: 100, requestedSamples: 100, failures: 0, durationMs: { ...stats, median: 9216.5 } },
       javascriptDurationMs: stats,
       domContentLoadedMs: stats,
       renderDurationMs: stats,
@@ -42,12 +43,13 @@ for (const rendering of [false, true]) {
       generatedAt: '2026-09-06T00:00:00.000Z', characters: 500, document: 'index.html', lines: 100, editors,
     }))
     await writeFile(join(directory, 'cpu-breakdown.json'), JSON.stringify({ contexts: [], hotspots: [], iterations: 20, lvceJavaScriptMs: 10 }))
+    await writeFile(join(directory, 'typing-lag.json'), '[]')
     await mkdir(join(directory, 'videos'))
     await Promise.all(editors.map(({ id }) => writeFile(join(directory, 'videos', `${id}.webm`), '')))
     const output = join(directory, 'output')
     await (rendering ? writeRenderReport : writeReport)({ input: directory, output, title: 'Results' })
     const chartFiles = (await readdir(output)).filter((file) => file.endsWith('.svg'))
-    assert.equal(chartFiles.length, rendering ? 11 : 2)
+    assert.equal(chartFiles.length, rendering ? 11 : 4)
     const browser = await chromium.launch()
     context.after(() => browser.close())
     const page = await browser.newPage()

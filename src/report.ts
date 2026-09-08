@@ -2,7 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { wrapChartLabel } from './chartLabels.ts'
 import { writeCpuBreakdownReport } from './cpuBreakdownReport.ts'
-import type { BenchmarkSummary, CpuBreakdown, EditorSummary, Stats } from './types.ts'
+import type { BenchmarkSummary, CpuBreakdown, EditorSummary } from './types.ts'
 
 interface ReportOptions {
   readonly input: string
@@ -14,7 +14,8 @@ interface ChartDefinition {
   readonly fileName: string
   readonly title: string
   readonly description: string
-  readonly getStats: (summary: EditorSummary) => Stats
+  readonly labels?: readonly [string, string]
+  readonly getValues: (summary: EditorSummary) => readonly [number | null, number | null]
 }
 
 const charts: readonly ChartDefinition[] = [
@@ -22,15 +23,35 @@ const charts: readonly ChartDefinition[] = [
     fileName: 'typing-duration.svg',
     title: 'Typing duration',
     description: 'Wall-clock time to dispatch, process, and paint all keypresses.',
-    getStats: (summary) => summary.typingDurationMs,
+    getValues: (summary) => [summary.typingDurationMs.mean, summary.typingDurationMs.min],
   },
   {
     fileName: 'javascript-duration.svg',
     title: 'JavaScript execution',
     description: 'Total sampled JavaScript CPU time across the page and its workers.',
-    getStats: (summary) => summary.javascriptDurationMs,
+    getValues: (summary) => [summary.javascriptDurationMs.mean, summary.javascriptDurationMs.min],
   },
 ]
+
+const lagCharts: readonly ChartDefinition[] = [
+  {
+    fileName: 'typing-lag.svg',
+    title: 'Typing lag',
+    description: 'Per-character keydown to Chromium paint completion, measured in a separate sequential pass. Lower is better.',
+    getValues: (summary) => [summary.typingLag?.durationMs.mean ?? null, summary.typingLag?.durationMs.min ?? null],
+  },
+  {
+    fileName: 'typing-lag-distribution.svg',
+    title: 'Typing lag median and p95',
+    description: 'Median and 95th-percentile delay across individual keystrokes.',
+    labels: ['Median', 'p95'],
+    getValues: (summary) => [summary.typingLag?.durationMs.median ?? null, summary.typingLag?.durationMs.p95 ?? null],
+  },
+]
+
+const getCharts = (summary: BenchmarkSummary): readonly ChartDefinition[] => {
+  return summary.editors.some((editor) => editor.typingLag) ? [...charts, ...lagCharts] : charts
+}
 
 const escapeHtml = (value: string): string => {
   return value
@@ -61,8 +82,7 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
   const chartHeight = 302
   const height = top + chartHeight + bottom
   const values = summary.editors.flatMap((editor) => {
-    const stats = chart.getStats(editor)
-    return [stats.mean, stats.min].filter((value): value is number => value !== null)
+    return chart.getValues(editor).filter((value): value is number => value !== null)
   })
   const max = Math.max(1, ...values) * 1.12
   const toY = (value: number): number => top + chartHeight - (value / max) * chartHeight
@@ -75,11 +95,11 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
   }).join('\n')
   const groups = summary.editors
     .map((editor, index) => {
-      const stats = chart.getStats(editor)
+      const [first, second] = chart.getValues(editor)
       const center = left + groupWidth * (index + 0.5)
       const bars = [
-        { value: stats.mean, className: 'average', x: center - barWidth - 4 },
-        { value: stats.min, className: 'fastest', x: center + 4 },
+        { value: first, className: 'average', x: center - barWidth - 4 },
+        { value: second, className: 'fastest', x: center + 4 },
       ]
         .map(({ value, className, x }) => {
           if (value === null) {
@@ -88,8 +108,8 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
           const y = toY(value)
           const barHeight = top + chartHeight - y
           // Separate nearby values vertically so labels wider than their bars remain readable.
-          const labelY = className === 'average' && stats.min !== null
-            ? Math.min(y - 8, toY(stats.min) - 30)
+          const labelY = className === 'average' && second !== null && Math.abs(y - toY(second)) < 22
+            ? Math.min(y - 8, toY(second) - 30)
             : y - 8
           return `<rect class="${className}" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="5" />
 <text class="value" x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle">${formatNumber(value)}</text>`
@@ -121,9 +141,9 @@ const renderChart = (summary: BenchmarkSummary, chart: ChartDefinition): string 
   <line x1="${left}" y1="${top + chartHeight}" x2="${width - right}" y2="${top + chartHeight}" stroke="#94a3b8" />
   ${groups}
   <circle cx="${width - 255}" cy="25" r="7" fill="#2563eb" />
-  <text x="${width - 240}" y="30" font-size="15">Average</text>
+  <text x="${width - 240}" y="30" font-size="15">${chart.labels?.[0] ?? 'Average'}</text>
   <circle cx="${width - 145}" cy="25" r="7" fill="#0d9488" />
-  <text x="${width - 130}" y="30" font-size="15">Fastest</text>
+  <text x="${width - 130}" y="30" font-size="15">${chart.labels?.[1] ?? 'Fastest'}</text>
 </svg>`
 }
 
@@ -141,6 +161,28 @@ const renderRows = (summary: BenchmarkSummary): string => {
 </tr>`,
     )
     .join('\n')
+}
+
+const renderLagResults = (summary: BenchmarkSummary): string => {
+  if (summary.editors.every((editor) => !editor.typingLag)) {
+    return ''
+  }
+  const rows = summary.editors.map((editor) => {
+    const lag = editor.typingLag
+    const stats = lag?.durationMs
+    return `<tr><th scope="row">${escapeHtml(editor.label)}</th>
+      <td>${lag?.samples ?? 0} / ${lag?.requestedSamples ?? 0}</td><td>${lag?.failures ?? 0}</td>
+      ${[stats?.min, stats?.mean, stats?.median, stats?.p95, stats?.max].map((value) => `<td>${formatNumber(value ?? null)} ms</td>`).join('')}
+    </tr>`
+  }).join('\n')
+  return `<section class="card">
+    <h2>Typing lag results</h2>
+    <p class="description">Each editor starts with a fresh, loaded empty document. One character is typed at a time, waiting for its text DOM update and paint before the next key. Samples include the first keystroke; no latency warmup is discarded.</p>
+    <p class="description">The metric runs from the trusted keydown event timestamp to completion of the first Chromium paint lifecycle containing a main-frame Paint after the character reaches the text DOM. Trace collection is enabled without CPU sampling. This measures browser paint work, excluding later GPU rasterization, compositing, and physical display latency. Frame scheduling and instrumentation affect the results.</p>
+    <p class="description">Missing text updates or paint evidence fail the pass; failed passes show n/a. <a href="./typing-lag.json">Download individual samples</a>.</p>
+    <table><thead><tr><th>Editor</th><th>Samples / requested</th><th>Failed passes</th><th>Fastest</th><th>Average</th><th>Median</th><th>p95</th><th>Slowest</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+  </section>`
 }
 
 const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doctype html>
@@ -174,7 +216,7 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
     <p><a href="./ide-startup/">IDE startup benchmark</a></p>
     <p><a href="./rendering/">Syntax highlight rendering benchmark</a></p>
     <p><a href="./lvce-cpu/">LVCE Editor Only CPU breakdown</a></p>
-    ${charts
+    ${getCharts(summary)
       .map(
         (chart) => `<section class="card">
       <h2>${escapeHtml(chart.title)}</h2>
@@ -183,6 +225,7 @@ const renderHtml = (summary: BenchmarkSummary, title: string): string => `<!doct
     </section>`,
       )
       .join('\n')}
+    ${renderLagResults(summary)}
     <section class="card">
       <h2>Results</h2>
       <p class="description">Average and fastest values are computed from successful measured iterations.</p>
@@ -201,9 +244,10 @@ export const writeReport = async ({ input, output, title }: ReportOptions): Prom
   const cpuBreakdown = JSON.parse(await readFile(join(input, 'cpu-breakdown.json'), 'utf8')) as CpuBreakdown
   await mkdir(output, { recursive: true })
   await Promise.all([
-    ...charts.map((chart) => writeFile(join(output, chart.fileName), renderChart(summary, chart))),
+    ...getCharts(summary).map((chart) => writeFile(join(output, chart.fileName), renderChart(summary, chart))),
     writeFile(join(output, 'index.html'), renderHtml(summary, title)),
     copyFile(join(input, 'summary.json'), join(output, 'summary.json')),
+    ...(summary.editors.some((editor) => editor.typingLag) ? [copyFile(join(input, 'typing-lag.json'), join(output, 'typing-lag.json'))] : []),
     writeCpuBreakdownReport({
       breakdown: cpuBreakdown,
       output: join(output, 'lvce-cpu'),

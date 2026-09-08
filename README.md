@@ -69,6 +69,41 @@ CodeMirror 5 is installed under the `codemirror5` npm alias alongside CodeMirror
 CodeJar uses plain text for typing and Prism HTML highlighting for rendering;
 its report version includes both CodeJar and Prism versions.
 
+## Typing lag
+
+The typing benchmark also runs a separate fresh-document latency pass for every
+editor, with 100 individual `a` keypresses by default (`--lag-samples <n>`).
+It waits for document readiness and an initial paint, then dispatches one key
+and waits for its text DOM update and two animation frames before the next key.
+The sample starts at the trusted keydown event's browser timestamp, excluding
+Playwright transport time. A MutationObserver marks when the actual text nodes
+contain the expected characters; editor model state alone is insufficient.
+
+A Chromium trace with `devtools.timeline`, `blink`, and `blink.user_timing`
+records the first `LocalFrameView::RunPaintLifecyclePhase` after that DOM mark
+which contains a main-frame `Paint`. Its completion is the endpoint. The two
+animation frames only bound the trace search; their callback timestamps are
+not used as the latency. All timing subtraction uses Chromium's trace clock.
+Missing marks, text updates, or paint evidence fail the pass instead of yielding
+zero or silently dropping slow samples.
+
+This is **keydown-to-browser-paint latency**, not key-to-photon latency. Chromium
+paint records drawing work; subsequent GPU rasterization, compositor submission,
+and physical display scanout are outside the metric. Frame scheduling and trace
+instrumentation affect results. See Chromium's
+[paint lifecycle implementation](https://chromium.googlesource.com/chromium/src/third_party/+/refs/heads/main/blink/renderer/core/frame/local_frame_view.cc).
+CPU sampling is disabled for this pass even when throughput profiling is enabled.
+The first keystroke is included; latency has no discarded warmup. The document
+grows across samples, and the next key is never dispatched before the prior
+update has had a paint opportunity.
+
+`results/typing-lag.json` preserves every sample and any pass failures, alongside
+per-editor traces in `results/profiles/`. The homepage adds average/fastest and
+median/p95 charts plus a table with sample counts, failed passes, and slowest
+values. Statistics use individual keystrokes, with nearest-rank p95 and the
+middle pair averaged for even-sized medians. Historical results without latency
+data remain reportable. CI runs the same 100-sample pass for all seven editors.
+
 ## Syntax highlight rendering benchmark
 
 `npm run benchmark:render` runs one warmup and 20 measured iterations for the

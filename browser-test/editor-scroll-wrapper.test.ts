@@ -33,7 +33,7 @@ for (const id of ['lvce-editor-minimal', 'lvce-editor-single-thread']) {
       bottom: element.getBoundingClientRect().bottom,
       translate: getComputedStyle(element).translate,
     })))
-    assert.equal(rows[0].top, -7)
+    assert.equal(rows[0]?.top, -7)
     assert.ok(rows.at(-1)!.bottom >= 120, 'The partially visible bottom row must fill the viewport')
     assert.ok(rows.every((row) => row.translate === 'none'))
 

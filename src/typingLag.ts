@@ -2,7 +2,17 @@ import type { Page } from 'playwright'
 import { computeStats } from './stats.ts'
 import type { EditorId, Stats, TraceEvent, TraceProfile } from './types.ts'
 
+export const typingLagCadence = 'varied-16-65ms-v2'
+
+export const getTypingLagPauseMs = (sample: number): number => {
+  // A golden-ratio sequence covers the pause range without randomness or refresh synchronization.
+  // Every editor gets the same reproducible sequence, independently of its typing speed.
+  const phase = (sample * 0.6180339887498949) % 1
+  return 16 + Math.floor(phase * 50)
+}
+
 export interface TypingLagResult {
+  readonly cadence?: typeof typingLagCadence
   readonly editor: EditorId
   readonly requestedSamples: number
   readonly samplesMs: readonly number[]
@@ -12,6 +22,7 @@ export interface TypingLagResult {
 }
 
 export interface TypingLagSummary {
+  readonly cadence?: typeof typingLagCadence
   readonly samples: number
   readonly requestedSamples: number
   readonly failures: number
@@ -119,6 +130,7 @@ export const summarizeTypingLag = (result: TypingLagResult): TypingLagSummary =>
     median = values.length % 2 === 0 ? (values[middle - 1]! + values[middle]!) / 2 : values[middle]!
   }
   return {
+    ...(result.cadence ? { cadence: result.cadence } : {}),
     samples: values.length,
     requestedSamples: result.requestedSamples,
     failures: result.success ? 0 : 1,

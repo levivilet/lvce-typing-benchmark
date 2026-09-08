@@ -71,12 +71,14 @@ test('writes a static report and chart files', async () => {
   assert.match(breakdownHtml, /Editor worker/)
   assert.match(breakdownHtml, /Self CPU per run/)
   assert.doesNotMatch(html, /Typing lag results/)
-  const lag = { samples: 100, requestedSamples: 100, failures: 0, durationMs: { mean: 5, min: 1, median: 4, p95: 9, max: 15 } }
+  const lag = { cadence: 'varied-16-65ms-v2', samples: 100, requestedSamples: 100, failures: 0, durationMs: { mean: 5, min: 1, median: 4, p95: 9, max: 15 } }
   await writeFile(join(input, 'summary.json'), JSON.stringify({ ...summary, editors: summary.editors.map((editor) => ({ ...editor, typingLag: lag })) }))
   await writeFile(join(input, 'typing-lag.json'), '[]')
   await writeReport({ input, output, title: 'Typing Results' })
   const lagHtml = await readFile(join(output, 'index.html'), 'utf8')
   assert.match(lagHtml, /Typing lag results/)
+  assert.match(lagHtml, /16–65 ms varied/)
+  assert.match(lagHtml, /not pure editor execution time/)
   assert.match(lagHtml, /100 \/ 100/)
   assert.match(lagHtml, /physical display latency/)
   assert.match(lagHtml, /4 ms/)

@@ -73,8 +73,14 @@ its report version includes both CodeJar and Prism versions.
 
 The typing benchmark also runs a separate fresh-document latency pass for every
 editor, with 100 individual `a` keypresses by default (`--lag-samples <n>`).
-It waits for document readiness and an initial paint, then dispatches one key
-and waits for its text DOM update and two animation frames before the next key.
+It waits for document readiness and an initial paint, then pauses for 16–65 ms
+before dispatching each key. After the text DOM update and two animation frames,
+it pauses again before the next key. The pause lengths use the same reproducible
+golden-ratio sequence for every editor. They vary across several refresh intervals
+to avoid synchronizing input with frame callbacks. A fixed 16 ms pause can still
+produce biased results. All pauses occur outside the measured interval, after any
+frame-based waits. Raw results and summary rows identify this cadence as
+`varied-16-65ms-v2`; older immediate-dispatch results are not directly comparable.
 The sample starts at the trusted keydown event's browser timestamp, excluding
 Playwright transport time. A MutationObserver marks when the actual text nodes
 contain the expected characters; editor model state alone is insufficient.
@@ -90,7 +96,12 @@ zero or silently dropping slow samples.
 This is **keydown-to-browser-paint latency**, not key-to-photon latency. Chromium
 paint records drawing work; subsequent GPU rasterization, compositor submission,
 and physical display scanout are outside the metric. Frame scheduling and trace
-instrumentation affect results. See Chromium's
+instrumentation affect results. This is not pure editor execution time: it
+includes waiting for Chromium to schedule rendering. Small differences should
+not be treated as a reliable editor ranking. The minimal-control experiment found
+roughly 0.4 ms of additional keydown-to-DOM time with tracing on this machine;
+that is not a universal calibration or a number subtracted from results.
+See [the cadence investigation](docs/typing-lag-cadence.md) and Chromium's
 [paint lifecycle implementation](https://chromium.googlesource.com/chromium/src/third_party/+/refs/heads/main/blink/renderer/core/frame/local_frame_view.cc).
 CPU sampling is disabled for this pass even when throughput profiling is enabled.
 The first keystroke is included; latency has no discarded warmup. The document

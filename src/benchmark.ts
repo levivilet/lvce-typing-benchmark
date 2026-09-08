@@ -1,9 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { chromium, type Browser, type CDPSession, type Page } from 'playwright'
 import { analyzeResults } from './analyze.ts'
 import { startCpuTrace, stopCpuTrace } from './cpuTrace.ts'
-import { armTypingLagSample, getTypingLagSamples, type TypingLagResult } from './typingLag.ts'
+import { armTypingLagSample, getTypingLagPauseMs, getTypingLagSamples, typingLagCadence, type TypingLagResult } from './typingLag.ts'
 import { getEditorFixture } from './editors.ts'
 import { startStaticServer } from './staticServer.ts'
 import type { BenchmarkMetadata, BenchmarkOptions, BenchmarkSummary, EditorFixture, FixtureManifest, IterationResult, TraceProfile } from './types.ts'
@@ -140,6 +141,9 @@ const runTypingLag = async (
     })
     tracing = true
     for (let sample = 1; sample <= options.lagSamples; sample++) {
+      // Pause after all frame-based waits, outside the measured interval. A fixed 16 ms
+      // pause can still phase-lock inputs; do not add a rAF wait after this delay.
+      await delay(getTypingLagPauseMs(sample))
       await armTypingLagSample(page, fixture.id, sample, options.timeout)
       await page.keyboard.press('a')
       await page.waitForFunction(() => Boolean(document.documentElement.dataset.typingLagSettled), undefined, { timeout: options.timeout })
@@ -152,13 +156,14 @@ const runTypingLag = async (
     tracing = false
     const trace = JSON.parse(await readFile(join(output, tracePath), 'utf8')) as TraceProfile
     const samplesMs = getTypingLagSamples(trace, options.lagSamples, frameTree.frame.id)
-    return { editor: fixture.id, requestedSamples: options.lagSamples, samplesMs, success: true, tracePath }
+    return { editor: fixture.id, cadence: typingLagCadence, requestedSamples: options.lagSamples, samplesMs, success: true, tracePath }
   } catch (error) {
     if (cdp && tracing) {
       await stopCpuTrace(cdp, join(output, tracePath)).catch(() => undefined)
     }
     return {
       editor: fixture.id,
+      cadence: typingLagCadence,
       requestedSamples: options.lagSamples,
       samplesMs: [],
       success: false,

@@ -8,6 +8,8 @@ const getBoolean = (value: string | undefined, fallback: boolean): boolean => {
 
 export const getCiBenchmarkArgs = (environment: NodeJS.ProcessEnv): readonly string[] => {
   const args = [
+    '--lag-samples',
+    environment.LAG_SAMPLES?.trim() || '100',
     '--characters',
     environment.CHARACTERS?.trim() || '500',
     '--editors',

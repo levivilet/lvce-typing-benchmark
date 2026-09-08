@@ -5,6 +5,7 @@ import { parseArgs } from '../src/cli.ts'
 test('uses the full benchmark defaults', () => {
   const options = parseArgs([])
   assert.equal(options.characters, 500)
+  assert.equal(options.lagSamples, 100)
   assert.equal(options.iterations, 20)
   assert.equal(options.warmups, 1)
   assert.equal(options.profile, true)
@@ -32,4 +33,11 @@ test('parses benchmark overrides', () => {
 
 test('rejects unknown editors', () => {
   assert.throws(() => parseArgs(['--editors', 'unknown']), /--editors must contain/)
+})
+
+test('validates latency sample counts', () => {
+  assert.equal(parseArgs(['--lag-samples', '7']).lagSamples, 7)
+  for (const value of ['0', '-1', '1.5', 'NaN']) {
+    assert.throws(() => parseArgs(['--lag-samples', value]), /must be an integer/)
+  }
 })

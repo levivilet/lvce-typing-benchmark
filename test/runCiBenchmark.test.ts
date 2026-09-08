@@ -4,6 +4,8 @@ import { getCiBenchmarkArgs } from '../src/runCiBenchmark.ts'
 
 test('builds full CI benchmark arguments by default', () => {
   assert.deepEqual(getCiBenchmarkArgs({}), [
+    '--lag-samples',
+    '100',
     '--characters',
     '500',
     '--editors',
@@ -21,4 +23,8 @@ test('builds full CI benchmark arguments by default', () => {
 
 test('can disable profiles for a CI smoke run', () => {
   assert.ok(getCiBenchmarkArgs({ PROFILE: 'false' }).includes('--no-profile'))
+})
+
+test('supports a configured latency sample count in CI', () => {
+  assert.deepEqual(getCiBenchmarkArgs({ LAG_SAMPLES: ' 25 ' }).slice(0, 2), ['--lag-samples', '25'])
 })

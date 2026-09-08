@@ -1,3 +1,5 @@
+import type { TypingLagSummary } from './typingLag.ts'
+
 export type EditorId = 'lvce-editor-minimal' | 'lvce-editor-single-thread' | 'monaco-editor' | 'codemirror' | 'codemirror5' | 'codejar-prism' | 'ace-editor'
 
 export type IdeId = 'lvce-editor' | 'vscode'
@@ -30,6 +32,7 @@ export interface BenchmarkMetadata {
 }
 
 export interface BenchmarkOptions {
+  readonly lagSamples: number
   readonly characters: number
   readonly editors: readonly EditorId[]
   readonly headed: boolean
@@ -59,6 +62,7 @@ export interface Stats {
 }
 
 export interface EditorSummary {
+  readonly typingLag?: TypingLagSummary
   readonly id: EditorId
   readonly label: string
   readonly version: string

@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { editorLabels } from './editors.ts'
 import { analyzeCpuBreakdown } from './cpuBreakdown.ts'
+import { summarizeTypingLag, type TypingLagResult } from './typingLag.ts'
 import { computeStats } from './stats.ts'
 import type { BenchmarkSummary, CpuProfileNode, EditorFixture, EditorId, IterationResult, TraceEvent, TraceProfile } from './types.ts'
 
@@ -54,6 +55,15 @@ export const analyzeResults = async (
   characters: number,
 ): Promise<BenchmarkSummary> => {
   const results = JSON.parse(await readFile(join(input, 'iterations.json'), 'utf8')) as readonly IterationResult[]
+  const lagResults = await readFile(join(input, 'typing-lag.json'), 'utf8').then(
+    (value) => JSON.parse(value) as readonly TypingLagResult[],
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') {
+        return []
+      }
+      throw error
+    },
+  )
   const traceCache = new Map<string, Promise<TraceProfile>>()
   const readTrace = (result: IterationResult): Promise<TraceProfile | null> => {
     if (!result.profilePath) {
@@ -84,7 +94,9 @@ export const analyzeResults = async (
         )
       ).filter((value): value is number => value !== null)
       const fixture = fixtures.find((candidate) => candidate.id === id)
+      const lagResult = lagResults.find((result) => result.editor === id)
       return {
+        ...(lagResult ? { typingLag: summarizeTypingLag(lagResult) } : {}),
         id,
         label: fixture?.label || editorLabels[id],
         version: fixture?.version || 'unknown',

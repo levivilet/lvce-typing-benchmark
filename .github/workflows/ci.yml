@@ -14,6 +14,10 @@ on:
         description: "Comma-separated IDEs"
         required: false
         default: "lvce-editor,vscode"
+      lag_samples:
+        description: "Sequential typing-lag samples per editor"
+        required: false
+        default: "100"
       characters:
         description: "Characters typed per iteration"
         required: false
@@ -65,6 +69,7 @@ jobs:
       - name: Run benchmark
         env:
           EDITORS: ${{ github.event.inputs.editors }}
+          LAG_SAMPLES: ${{ github.event.inputs.lag_samples || '100' }}
           CHARACTERS: ${{ github.event.inputs.characters || '500' }}
           ITERATIONS: ${{ github.event.inputs.iterations || '20' }}
           WARMUPS: ${{ github.event.inputs.warmups || '1' }}

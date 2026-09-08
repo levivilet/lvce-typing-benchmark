@@ -301,7 +301,7 @@ const renderLoadVideos = (summary: RenderBenchmarkSummary): string => {
     .join('\n')
 }
 
-const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `<!doctype html>
+const renderPage = (title: string, content: string): string => `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -337,15 +337,17 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
 </head>
 <body>
   <main>
-    <p><a href="../">Editor typing benchmark</a> · <a href="../ide-startup/">IDE startup benchmark</a></p>
+    ${content}
+  </main>
+</body>
+</html>
+`
+
+const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => renderPage(title, `
+    <p><a href="../">Editor typing benchmark</a> · <a href="../ide-startup/">IDE startup benchmark</a> · <a href="./videos.html">Recorded loads</a></p>
     <h1>${escapeHtml(title)}</h1>
     <p class="intro">${summary.lines}-line <code>${escapeHtml(summary.document)}</code> · generated ${escapeHtml(summary.generatedAt)}</p>
     <p class="note">Each editor-only fixture opens the same HTML in a fresh Chromium instance. Both LVCE variants, Monaco, and CodeMirror are compared without a surrounding IDE workbench.</p>
-    <section class="recordings">
-      <h2>Recorded loads</h2>
-      <p class="description">Each video records one separate, fresh Chromium load from navigation until syntax highlighting is painted. Video capture is not included in the measurements below.</p>
-      ${renderLoadVideos(summary)}
-    </section>
     ${charts
       .map(
         (chart) => `<section class="card">
@@ -374,10 +376,17 @@ const renderHtml = (summary: RenderBenchmarkSummary, title: string): string => `
         <tbody>${renderRows(summary)}</tbody>
       </table>
     </section>
-  </main>
-</body>
-</html>
-`
+`)
+
+const renderVideosHtml = (summary: RenderBenchmarkSummary, title: string): string => renderPage(`${title} — Recorded loads`, `
+    <p><a href="./">Back to charts and tables</a></p>
+    <h1>Recorded loads</h1>
+    <p class="intro">${escapeHtml(title)} · ${summary.lines}-line <code>${escapeHtml(summary.document)}</code> · generated ${escapeHtml(summary.generatedAt)}</p>
+    <section class="recordings" aria-label="Load recordings">
+      <p class="description">Each video records one separate, fresh Chromium load from navigation until syntax highlighting is painted. Video capture is not included in the benchmark measurements.</p>
+      ${renderLoadVideos(summary)}
+    </section>
+`)
 
 export const writeRenderReport = async ({ input, output, title }: RenderReportOptions): Promise<void> => {
   const summary = JSON.parse(await readFile(join(input, 'summary.json'), 'utf8')) as RenderBenchmarkSummary
@@ -388,6 +397,7 @@ export const writeRenderReport = async ({ input, output, title }: RenderReportOp
       copyFile(join(input, 'videos', `${editor.id}.webm`), join(output, 'videos', `${editor.id}.webm`)),
     ),
     writeFile(join(output, 'index.html'), renderHtml(summary, title)),
+    writeFile(join(output, 'videos.html'), renderVideosHtml(summary, title)),
     copyFile(join(input, 'summary.json'), join(output, 'summary.json')),
   ])
 }

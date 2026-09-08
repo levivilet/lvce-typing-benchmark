@@ -7,7 +7,7 @@ and VS Code, under repeatable Chromium/Playwright workloads.
 
 ## Run locally
 
-Node.js 24 or newer is required.
+Node.js 24.15 or newer in the 24.x release line, or Node.js 26 or newer, is required.
 
 ```sh
 npm ci

@@ -171,11 +171,15 @@ npm run report:startup -- --input startup-results --output .tmp/pages/ide-startu
 
 ## Continuous integration
 
-Pull requests run lint, tests, type checking, fixture generation, browser fixture
-checks, and one profiled smoke iteration for typing, rendering, and IDE startup. Pushes to
+Both pull requests and main CI start with a separate `test-and-lint` job that
+installs dependencies and runs lint, unit tests, and type checking. Once it passes,
+the `benchmark` job installs dependencies, generates fixtures, checks browser
+fixtures, runs benchmarks, and uploads the results. Pull requests run one profiled
+smoke iteration for typing, rendering, and IDE startup. Pushes to
 `main` run 20 profiled iterations for all three benchmark types, upload the raw
 results, profiles, and load recordings as an artifact, and deploy separate
-editor, rendering, and IDE startup reports to GitHub Pages.
+editor, rendering, and IDE startup reports to GitHub Pages. The separate `deploy`
+job uses the Pages artifact uploaded by `benchmark`.
 
 The LVCE editor-only renderer and styles live in `fixtures/lvce` and are built
 by `npm run setup`. They use `@lvce-editor/rpc` and `@lvce-editor/virtual-dom`

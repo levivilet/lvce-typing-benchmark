@@ -49,10 +49,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  benchmark:
+  test-and-lint:
     runs-on: ubuntu-latest
-    outputs:
-      pages: ${{ steps.report.outputs.pages }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -63,6 +61,19 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run type-check
+
+  benchmark:
+    needs: test-and-lint
+    runs-on: ubuntu-latest
+    outputs:
+      pages: ${{ steps.report.outputs.pages }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci
       - run: npm run setup
       - run: npm run install-browser:ci
       - run: npm run test:fixtures
